@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Think Tank</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Think Tank</h1>
+            <p class="subtitle">A round-table of AI minds discussing your topics</p>
+        </header>
+
+        <div class="agents-bar" id="agents-bar"></div>
+
+        <div class="chat-area" id="chat-area">
+            <div class="welcome-message">
+                <p>Submit a topic below and watch the panel discuss it in real-time.</p>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="controls">
+                <label for="rounds">Rounds:</label>
+                <select id="rounds">
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <div class="input-row">
+                <input type="text" id="topic-input" placeholder="Enter a topic for discussion..." autocomplete="off">
+                <button id="submit-btn">Discuss</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
