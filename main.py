@@ -1,16 +1,20 @@
 import json
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from agents.registry import AgentRegistry
 from discussion.engine import DiscussionEngine
+from discussion.models import Discussion
+from discussion.files import process_file
 
 app = FastAPI(title="AI Think Tank")
 
 registry = AgentRegistry()
 engine = DiscussionEngine(registry)
+
+file_contexts: dict[str, str] = {}
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -25,21 +29,49 @@ async def list_agents():
     return registry.list_agents()
 
 
+@app.post("/api/upload")
+async def upload_files(files: list[UploadFile] = File(...)):
+    """Process uploaded files and return extracted text context."""
+    parts = []
+    filenames = []
+    for f in files:
+        content = await f.read()
+        extracted = process_file(f.filename or "unknown", content)
+        parts.append(extracted)
+        filenames.append(f.filename)
+    combined = "\n\n".join(parts)
+    session_id = str(hash(combined))[:12]
+    file_contexts[session_id] = combined
+    return {"session_id": session_id, "filenames": filenames, "preview": combined[:500]}
+
+
 @app.websocket("/ws/discuss")
 async def discuss(websocket: WebSocket):
     await websocket.accept()
     try:
+        # First message: session init
         data = await websocket.receive_text()
         payload = json.loads(data)
         topic = payload.get("topic", "")
-        rounds = min(int(payload.get("rounds", 2)), 5)
+        agent_keys = payload.get("agents", None)
+        session_id = payload.get("session_id", "")
+        prior_export = payload.get("prior_discussion", None)
 
         if not topic.strip():
             await websocket.send_text(json.dumps({"type": "error", "message": "Topic cannot be empty"}))
             await websocket.close()
             return
 
-        await engine.run(topic, rounds, websocket)
+        file_context = file_contexts.get(session_id, "")
+        prior_discussion = Discussion.from_export(prior_export) if prior_export else None
+
+        # Hand off to command-driven session loop
+        await engine.run_session(
+            websocket, topic,
+            agent_keys=agent_keys,
+            file_context=file_context,
+            prior_discussion=prior_discussion,
+        )
     except WebSocketDisconnect:
         pass
     except Exception as e:

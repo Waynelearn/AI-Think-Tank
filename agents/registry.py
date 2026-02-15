@@ -24,11 +24,15 @@ class AgentRegistry:
     def get_all(self) -> list[Agent]:
         return list(self.agents.values())
 
-    def get_discussion_order(self) -> list[Agent]:
-        """Return agents in discussion order: all except mediator first, mediator last."""
+    def get_discussion_order(self, keys: list[str] | None = None) -> list[Agent]:
+        """Return agents in discussion order, optionally filtered by keys. Mediator goes last."""
+        if keys:
+            pool = {k: self.agents[k] for k in keys if k in self.agents}
+        else:
+            pool = self.agents
         agents = []
         mediator = None
-        for agent in self.agents.values():
+        for agent in pool.values():
             if agent.name == "The Mediator":
                 mediator = agent
             else:

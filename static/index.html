@@ -15,24 +15,49 @@
 
         <div class="agents-bar" id="agents-bar"></div>
 
-        <div class="chat-area" id="chat-area">
-            <div class="welcome-message">
-                <p>Submit a topic below and watch the panel discuss it in real-time.</p>
+        <div class="main-area">
+            <!-- Queue Panel (right side) -->
+            <div class="queue-panel" id="queue-panel">
+                <div class="queue-header">
+                    <span class="queue-title">Speaker Queue</span>
+                    <span class="queue-round" id="queue-round">Round 1</span>
+                </div>
+                <div class="queue-list" id="queue-list"></div>
+                <div class="queue-actions">
+                    <button id="btn-play" class="q-btn q-play" title="Auto-run all in queue">&#9654; Play All</button>
+                    <button id="btn-next" class="q-btn q-next" title="Run next agent">&#9199; Next</button>
+                    <button id="btn-new-round" class="q-btn" title="Start a new round">&#10227; New Round</button>
+                    <button id="btn-end" class="q-btn q-end" title="Stop auto-play">&#9724; Stop</button>
+                    <button id="btn-clear" class="q-btn" title="Clear all agents from queue">&#128465; Clear</button>
+                </div>
+                <div class="queue-add">
+                    <select id="add-agent-select"><option value="">+ Add agent...</option></select>
+                    <button id="btn-add-agent" class="q-btn-sm">Add</button>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chat-area">
+                <div class="welcome-message">
+                    <p>Select agents above, enter a topic, and control the discussion with the queue panel.</p>
+                    <p class="welcome-sub">Click agents to toggle. Drag queue items to reorder. Interject anytime.</p>
+                </div>
             </div>
         </div>
 
         <div class="input-area">
             <div class="controls">
-                <label for="rounds">Rounds:</label>
-                <select id="rounds">
-                    <option value="1">1</option>
-                    <option value="2" selected>2</option>
-                    <option value="3">3</option>
-                </select>
+                <label for="file-upload" class="file-upload-btn" title="Attach files">&#128206; Attach</label>
+                <input type="file" id="file-upload" multiple hidden
+                    accept=".csv,.xlsx,.xls,.pdf,.html,.htm,.txt,.md,.json,.log,.py,.js,.ts,.docx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi,.mkv">
+                <span id="file-status" class="file-status"></span>
+                <button id="download-btn" class="icon-btn" title="Download conversation" disabled>&#128190; Save</button>
+                <button id="load-btn" class="icon-btn" title="Load previous conversation">&#128194; Load</button>
+                <input type="file" id="load-input" accept=".json" hidden>
             </div>
             <div class="input-row">
                 <input type="text" id="topic-input" placeholder="Enter a topic for discussion..." autocomplete="off">
-                <button id="submit-btn">Discuss</button>
+                <button id="submit-btn">Start</button>
             </div>
         </div>
     </div>
