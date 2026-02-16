@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Think Tank — Help</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e0e0e0;
+            line-height: 1.7;
+            padding: 1.5rem;
+        }
+        .help-container {
+            max-width: 740px;
+            margin: 0 auto;
+        }
+        .back-link {
+            display: inline-block;
+            color: #6cb4ee;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+        h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #4A90D9, #9B59B6, #E74C3C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.3rem;
+        }
+        .help-subtitle {
+            color: #888;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+        h2 {
+            font-size: 1.1rem;
+            color: #4A90D9;
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #222;
+        }
+        h3 {
+            font-size: 0.95rem;
+            color: #9B59B6;
+            margin-top: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        p { margin-bottom: 0.7rem; font-size: 0.88rem; color: #ccc; }
+        ul, ol { margin: 0.4rem 0 0.8rem 1.4rem; font-size: 0.88rem; color: #ccc; }
+        li { margin-bottom: 0.3rem; }
+        code {
+            background: #1a1d27;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: #e0e0e0;
+        }
+        .tip {
+            background: #1b2333;
+            border-left: 3px solid #4A90D9;
+            padding: 0.6rem 0.8rem;
+            border-radius: 0 8px 8px 0;
+            margin: 0.6rem 0;
+            font-size: 0.85rem;
+        }
+        .warn {
+            background: #2d2517;
+            border-left: 3px solid #E67E22;
+            padding: 0.6rem 0.8rem;
+            border-radius: 0 8px 8px 0;
+            margin: 0.6rem 0;
+            font-size: 0.85rem;
+            color: #E67E22;
+        }
+        .agent-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.5rem;
+            margin: 0.6rem 0;
+            list-style: none;
+            padding: 0;
+        }
+        .agent-list li {
+            background: #1a1d27;
+            padding: 0.5rem 0.7rem;
+            border-radius: 8px;
+            border-left: 3px solid var(--color);
+            font-size: 0.82rem;
+        }
+        .agent-list .agent-name { font-weight: 600; }
+        .agent-list .agent-desc { color: #999; font-size: 0.78rem; }
+        kbd {
+            background: #222638;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 0.1rem 0.35rem;
+            font-size: 0.78rem;
+            font-family: inherit;
+        }
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            h1 { font-size: 1.3rem; }
+            .agent-list { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="help-container">
+        <a href="/" class="back-link">&larr; Back to Think Tank</a>
+        <h1>AI Think Tank — Help Guide</h1>
+        <p class="help-subtitle">Everything you need to know to run a multi-agent discussion.</p>
+
+        <!-- ───────────── Getting Started ───────────── -->
+        <h2>1. Getting Started</h2>
+
+        <h3>Setting Up API Keys</h3>
+        <p>
+            Before starting a discussion, you need to provide your API keys. Click the
+            <strong>"API Keys"</strong> toggle at the top of the page to expand the settings panel.
+        </p>
+        <ol>
+            <li><strong>Claude API Key</strong> (required) — Powers the AI agents. Get one from
+                <a href="https://console.anthropic.com/" target="_blank" style="color:#6cb4ee">console.anthropic.com</a>.</li>
+            <li><strong>Brave Search API Key</strong> (optional) — Enables agents to search the web for live data and images.
+                Get a free key (2,000 queries/month) from
+                <a href="https://brave.com/search/api/" target="_blank" style="color:#6cb4ee">brave.com/search/api</a>.</li>
+        </ol>
+        <p>Click <strong>"Save Keys"</strong> to store them in your browser. They persist across sessions on the same device and are never sent to our server — they go directly to the respective APIs.</p>
+
+        <div class="warn">
+            If no Brave Search key is provided, an orange banner will appear and agents will not be able to search the web. The discussion will still work, but agents won't have access to current information.
+        </div>
+
+        <h3>Starting a Discussion</h3>
+        <ol>
+            <li>Select which agents you want to participate by clicking their chips (all are selected by default).</li>
+            <li>Type a topic in the input field at the bottom (e.g. "Should AI be regulated?" or "Analyze Tesla's Q4 earnings").</li>
+            <li>Optionally attach files for context (PDF, Excel, Word, images, code, etc.).</li>
+            <li>Click <strong>Start</strong> or press <kbd>Enter</kbd>.</li>
+        </ol>
+
+        <!-- ───────────── Speaker Queue ───────────── -->
+        <h2>2. The Speaker Queue</h2>
+        <p>
+            The Speaker Queue controls which agents speak and in what order. When a discussion starts, all selected agents are added to the queue automatically.
+        </p>
+
+        <h3>Queue Controls</h3>
+        <ul>
+            <li><strong>Play All</strong> — Automatically runs every agent in the queue one after another. Click again to pause.</li>
+            <li><strong>Next</strong> — Runs just the next agent in line, then stops.</li>
+            <li><strong>New Round</strong> — Advances to a new discussion round and refills the queue with all selected agents.</li>
+            <li><strong>Stop</strong> — Pauses auto-play (does not end the session).</li>
+            <li><strong>Clear</strong> — Empties the queue entirely.</li>
+        </ul>
+
+        <h3>Reordering &amp; Editing the Queue</h3>
+        <ul>
+            <li><strong>Drag &amp; drop</strong> queue items to reorder (grab the ☰ handle).</li>
+            <li>Use the <strong>arrow buttons</strong> (↑ ↓) to move an agent up or down.</li>
+            <li>Click <strong>×</strong> to remove an agent from the queue.</li>
+            <li>Use the <strong>"Add agent"</strong> dropdown to insert any agent into the queue at any time — even agents that aren't in the current selection.</li>
+        </ul>
+
+        <div class="tip">
+            <strong>Tip:</strong> The Mediator is automatically placed last in the queue. You can drag them earlier if you want synthesis sooner.
+        </div>
+
+        <h3>Mobile Users</h3>
+        <p>
+            On mobile, the queue is collapsed by default. Tap the <strong>"Speaker Queue"</strong> bar to expand or collapse it. The chat area fills the rest of the screen.
+        </p>
+
+        <!-- ───────────── Interacting ───────────── -->
+        <h2>3. Interacting During a Discussion</h2>
+        <p>
+            Once a discussion is running, the input field changes to an interjection box. You can type a message and click <strong>Send</strong> (or press <kbd>Enter</kbd>) at any time — even while an agent is speaking.
+        </p>
+        <p>Your interjections are added to the transcript and every agent that speaks after will see and address your message. Use this to:</p>
+        <ul>
+            <li>Steer the conversation in a different direction.</li>
+            <li>Ask agents to focus on a specific sub-topic.</li>
+            <li>Request specific output formats (e.g., "Give me a table comparing X and Y").</li>
+            <li>Ask agents to search for images or data (e.g., "Find me a chart of GDP growth").</li>
+        </ul>
+
+        <!-- ───────────── Agents ───────────── -->
+        <h2>4. Meet the Agents</h2>
+        <p>Each agent has a distinct personality, expertise, and discussion style. Click an agent chip to toggle their participation.</p>
+
+        <ul class="agent-list">
+            <li style="--color:#4A90D9"><span class="agent-name">🔬 Dr. Nova</span><br><span class="agent-desc">Science & Technology — Data-driven, evidence-based, cites studies.</span></li>
+            <li style="--color:#9B59B6"><span class="agent-name">🏛️ Philosopher Phil</span><br><span class="agent-desc">Philosophy & Ethics — Socratic questions, moral dimensions.</span></li>
+            <li style="--color:#27AE60"><span class="agent-name">📊 Biz</span><br><span class="agent-desc">Business Strategy — ROI-focused, pragmatic, bottom-line thinker.</span></li>
+            <li style="--color:#E74C3C"><span class="agent-name">🎨 Creatia</span><br><span class="agent-desc">Creativity & Arts — Metaphorical, unconventional perspectives.</span></li>
+            <li style="--color:#E67E22"><span class="agent-name">😈 Devil's Advocate</span><br><span class="agent-desc">Critical Analysis — Challenges every assumption head-on.</span></li>
+            <li style="--color:#1ABC9C"><span class="agent-name">⚖️ The Mediator</span><br><span class="agent-desc">Synthesis & Consensus — Finds common ground, summarizes.</span></li>
+            <li style="--color:#C0392B"><span class="agent-name">🔥 Rex Risk</span><br><span class="agent-desc">High-Risk Strategy — Bold bets, asymmetric payoffs.</span></li>
+            <li style="--color:#F39C12"><span class="agent-name">🚀 YOLO Max</span><br><span class="agent-desc">Speculative Trading — Momentum-driven, high-conviction plays.</span></li>
+            <li style="--color:#2E86C1"><span class="agent-name">📈 Samantha Street</span><br><span class="agent-desc">Equity Research — Valuation-focused fundamental analysis.</span></li>
+            <li style="--color:#34495E"><span class="agent-name">🌍 Dr. Macro</span><br><span class="agent-desc">Macroeconomics — Systems-oriented, big-picture thinker.</span></li>
+            <li style="--color:#16A085"><span class="agent-name">⚙️ Systems Sage</span><br><span class="agent-desc">Systems Design — Architecture and engineering patterns.</span></li>
+            <li style="--color:#8E44AD"><span class="agent-name">🧠 Dr. Bias</span><br><span class="agent-desc">Behavioral Psychology — Identifies cognitive biases.</span></li>
+            <li style="--color:#1F618D"><span class="agent-name">🏦 Capital Steward</span><br><span class="agent-desc">Capital Allocation — Long-term, disciplined investing.</span></li>
+            <li style="--color:#7D3C98"><span class="agent-name">🛰️ Atlas</span><br><span class="agent-desc">Geopolitics — Power dynamics and global strategy.</span></li>
+        </ul>
+
+        <!-- ───────────── File Uploads ───────────── -->
+        <h2>5. Attaching Files</h2>
+        <p>Click <strong>"Attach"</strong> in the bottom toolbar to upload reference materials. Agents will read and cite them during the discussion.</p>
+        <p>Supported file types:</p>
+        <ul>
+            <li><strong>Documents:</strong> PDF, Word (.docx), plain text, Markdown, HTML</li>
+            <li><strong>Data:</strong> Excel (.xlsx), CSV, JSON</li>
+            <li><strong>Code:</strong> Python, JavaScript, TypeScript, and other code files</li>
+            <li><strong>Images:</strong> PNG, JPG, GIF, WebP (metadata is extracted)</li>
+            <li><strong>Video:</strong> MP4, MOV, AVI, MKV (metadata only)</li>
+        </ul>
+        <div class="tip">
+            <strong>Tip:</strong> Upload earnings reports, research papers, or datasets and ask agents to debate their implications.
+        </div>
+
+        <!-- ───────────── Saving & Loading ───────────── -->
+        <h2>6. Saving &amp; Loading Discussions</h2>
+
+        <h3>Saving</h3>
+        <p>Use the save dropdown and button in the bottom toolbar:</p>
+        <ul>
+            <li><strong>Save as HTML</strong> — A styled, self-contained HTML file you can open in any browser. Also embeds the raw data so it can be reloaded later.</li>
+            <li><strong>Save as JSON</strong> — Raw structured data (topic, messages, rounds, agents). Good for programmatic use.</li>
+        </ul>
+
+        <h3>Loading a Previous Discussion</h3>
+        <ol>
+            <li>Click <strong>"Load"</strong> and select a previously saved <code>.html</code> or <code>.json</code> file.</li>
+            <li>The full transcript will be displayed and the topic field will be pre-filled.</li>
+            <li>Click <strong>Start</strong> to continue the discussion. All agents will have context of the prior conversation.</li>
+        </ol>
+
+        <!-- ───────────── Web Search ───────────── -->
+        <h2>7. Web Search &amp; Images</h2>
+        <p>
+            When a Brave Search API key is configured, agents can autonomously search the web during their responses.
+            They use this to find current data, cite sources with links, and embed images.
+        </p>
+        <p>You can also explicitly ask for searches by interjecting, e.g.:</p>
+        <ul>
+            <li>"Search for the latest unemployment figures."</li>
+            <li>"Find me a chart comparing iPhone vs Android market share."</li>
+            <li>"Look up the S&P 500 performance this year."</li>
+        </ul>
+        <p>Image results are embedded directly in the chat. If an image fails to load, a fallback thumbnail or link is shown automatically.</p>
+
+        <!-- ───────────── Tips ───────────── -->
+        <h2>8. Tips &amp; Best Practices</h2>
+        <ul>
+            <li><strong>Start small:</strong> Begin with 3–5 agents for focused discussions. Add more for broader debates.</li>
+            <li><strong>Use The Mediator last:</strong> They synthesize everyone's points — best placed at the end of a round.</li>
+            <li><strong>Multi-round discussions:</strong> Click "New Round" after each pass. Agents will build on prior rounds.</li>
+            <li><strong>Be specific in interjections:</strong> "Compare the GDP data from Dr. Macro with Biz's profitability analysis" gives better results than "discuss more."</li>
+            <li><strong>Upload context:</strong> Agents give much better analysis when they have data to work with (PDFs, spreadsheets, reports).</li>
+            <li><strong>Use Devil's Advocate:</strong> They'll stress-test ideas the other agents are too agreeable on.</li>
+        </ul>
+
+        <!-- ───────────── Keyboard Shortcuts ───────────── -->
+        <h2>9. Keyboard Shortcuts</h2>
+        <ul>
+            <li><kbd>Enter</kbd> — Start discussion / Send interjection</li>
+        </ul>
+
+        <!-- ───────────── Troubleshooting ───────────── -->
+        <h2>10. Troubleshooting</h2>
+        <ul>
+            <li><strong>"Please add your Claude API key"</strong> — Open the API Keys panel and enter a valid Anthropic API key.</li>
+            <li><strong>"Connection error"</strong> — The backend server may not be running. Ensure <code>python main.py</code> is active on port 8000.</li>
+            <li><strong>Search not working</strong> — Check that your Brave Search API key is valid and has remaining quota.</li>
+            <li><strong>Agent gives generic response</strong> — Try interjecting with specific instructions or upload reference documents for richer context.</li>
+            <li><strong>Images not loading</strong> — Some image sources block embedding. The app automatically tries fallback thumbnails. If all fail, a clickable link is shown instead.</li>
+        </ul>
+
+        <p style="margin-top: 2rem; color: #555; font-size: 0.8rem; text-align: center;">
+            AI Think Tank — Multi-agent discussion platform powered by Claude.
+        </p>
+    </div>
+</body>
+</html>

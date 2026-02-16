@@ -42,6 +42,28 @@ header h1 {
     margin-top: 0.2rem;
 }
 
+.help-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: #222;
+    color: #888;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-decoration: none;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+    transition: background 0.2s, color 0.2s;
+}
+
+.help-link:hover {
+    background: #4A90D9;
+    color: #fff;
+}
+
 /* ── Settings Panel ── */
 .settings-panel {
     flex-shrink: 0;
@@ -611,7 +633,6 @@ header h1 {
     .main-area {
         flex-direction: column;
         gap: 0;
-        position: relative;
     }
 
     /* Chat area fills available space */
@@ -628,7 +649,7 @@ header h1 {
     .message-avatar { font-size: 1.1rem; width: 1.5rem; }
     .message-content { font-size: 0.82rem; }
 
-    /* Queue panel: collapsible overlay */
+    /* Queue toggle: visible on mobile */
     .queue-toggle {
         display: flex;
         align-items: center;
@@ -644,24 +665,24 @@ header h1 {
         font-weight: 600;
         cursor: pointer;
         min-height: 40px;
-        margin-bottom: 0.4rem;
+        flex-shrink: 0;
+        order: -1;
     }
     .queue-toggle:hover { border-color: #4A90D9; color: #e0e0e0; }
 
+    /* Queue panel: normal-flow collapsible (not absolute) */
     .queue-panel {
         width: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 10;
+        position: static;
         max-height: 0;
         overflow: hidden;
         border-radius: 0 0 10px 10px;
-        padding: 0;
+        padding: 0 0.6rem;
         opacity: 1;
         pointer-events: none;
         transition: max-height 0.3s ease, padding 0.3s ease;
+        flex-shrink: 0;
+        order: -1;
     }
 
     .queue-panel.active {
@@ -669,13 +690,13 @@ header h1 {
     }
 
     .queue-panel.mobile-open {
-        max-height: 350px;
+        max-height: 300px;
         padding: 0.6rem;
         pointer-events: auto;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        margin-bottom: 0.4rem;
     }
 
-    .queue-list { max-height: 120px; }
+    .queue-list { max-height: 100px; }
 
     .queue-actions {
         grid-template-columns: repeat(3, 1fr);

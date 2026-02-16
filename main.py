@@ -24,6 +24,11 @@ async def root():
     return FileResponse("static/index.html")
 
 
+@app.get("/help")
+async def help_page():
+    return FileResponse("static/help.html")
+
+
 @app.get("/api/agents")
 async def list_agents():
     return registry.list_agents()
