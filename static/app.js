@@ -390,6 +390,7 @@ function startSession() {
     submitBtn.disabled = false;
     topicInput.disabled = false;
     topicInput.value = "";
+    topicInput.style.height = "auto";
     topicInput.placeholder = "Type your message to interject...";
     submitBtn.textContent = "Send";
     downloadBtn.disabled = false;
@@ -623,6 +624,7 @@ function sendUserMessage() {
     }
     sendCmd({ action: "user_message", message: msg });
     topicInput.value = "";
+    topicInput.style.height = "auto";
 }
 
 // ── Input Mode ──
@@ -939,13 +941,20 @@ submitBtn.addEventListener("click", () => {
 });
 
 topicInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
         if (sessionActive) {
             sendUserMessage();
         } else if (!sessionActive && !submitBtn.disabled) {
             startSession();
         }
     }
+});
+
+// Auto-resize textarea as user types
+topicInput.addEventListener("input", () => {
+    topicInput.style.height = "auto";
+    topicInput.style.height = Math.min(topicInput.scrollHeight, 150) + "px";
 });
 
 // ── Settings / API Keys ──
