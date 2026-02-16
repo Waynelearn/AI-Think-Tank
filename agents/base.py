@@ -15,75 +15,86 @@ class Agent:
         self.system_prompt = system_prompt
         self.color = color
         self.avatar = avatar
-        self.client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
 
-    async def respond(self, messages: list[dict]) -> str:
+    def _get_client(self, api_keys: dict | None = None) -> AsyncAnthropic:
+        """Create an Anthropic client using per-session key if provided, else fallback to config."""
+        key = (api_keys or {}).get("anthropic_api_key", "") or config.ANTHROPIC_API_KEY
+        return AsyncAnthropic(api_key=key)
+
+    def _get_brave_key(self, api_keys: dict | None = None) -> str:
+        """Get Brave API key from per-session keys or fallback to config."""
+        return (api_keys or {}).get("brave_api_key", "") or config.BRAVE_API_KEY
+
+    def _get_tools(self, api_keys: dict | None = None) -> list[dict]:
+        """Return available tools. Exclude search tools if no Brave key is available."""
+        brave_key = self._get_brave_key(api_keys)
+        if brave_key:
+            return [SEARCH_TOOL_DEFINITION, IMAGE_SEARCH_TOOL_DEFINITION]
+        return []
+
+    async def respond(self, messages: list[dict], api_keys: dict | None = None) -> str:
         """Get a complete response from the agent with tool use support."""
-        response = await self.client.messages.create(
+        client = self._get_client(api_keys)
+        tools = self._get_tools(api_keys)
+        brave_key = self._get_brave_key(api_keys)
+        kwargs = dict(
             model=config.MODEL,
             max_tokens=config.MAX_TOKENS,
             system=self.system_prompt,
             messages=messages,
-            tools=[SEARCH_TOOL_DEFINITION, IMAGE_SEARCH_TOOL_DEFINITION],
         )
+        if tools:
+            kwargs["tools"] = tools
+        response = await client.messages.create(**kwargs)
         # Handle tool use loop
         current_messages = list(messages)
         while response.stop_reason == "tool_use":
-            tool_results = self._process_tool_calls(response)
+            tool_results = self._process_tool_calls(response, brave_key)
             current_messages.append({"role": "assistant", "content": response.content})
             current_messages.append({"role": "user", "content": tool_results})
-            response = await self.client.messages.create(
-                model=config.MODEL,
-                max_tokens=config.MAX_TOKENS,
-                system=self.system_prompt,
-                messages=current_messages,
-                tools=[SEARCH_TOOL_DEFINITION, IMAGE_SEARCH_TOOL_DEFINITION],
-            )
+            response = await client.messages.create(**dict(kwargs, messages=current_messages))
         return self._extract_text(response)
 
-    async def stream_response(self, messages: list[dict]):
-        """Stream a response, handling tool use transparently. Yields text chunks and source dicts."""
+    async def stream_response(self, messages: list[dict], api_keys: dict | None = None):
+        """Stream a response, handling tool use transparently. Yields text chunks."""
+        client = self._get_client(api_keys)
+        tools = self._get_tools(api_keys)
+        brave_key = self._get_brave_key(api_keys)
         current_messages = list(messages)
         max_tool_rounds = 3
 
+        kwargs = dict(
+            model=config.MODEL,
+            max_tokens=config.MAX_TOKENS,
+            system=self.system_prompt,
+        )
+        if tools:
+            kwargs["tools"] = tools
+
         for _ in range(max_tool_rounds):
-            # Collect the full response first to check for tool use
-            response = await self.client.messages.create(
-                model=config.MODEL,
-                max_tokens=config.MAX_TOKENS,
-                system=self.system_prompt,
-                messages=current_messages,
-                tools=[SEARCH_TOOL_DEFINITION, IMAGE_SEARCH_TOOL_DEFINITION],
-            )
+            response = await client.messages.create(**kwargs, messages=current_messages)
 
             if response.stop_reason == "tool_use":
-                tool_results = self._process_tool_calls(response)
+                tool_results = self._process_tool_calls(response, brave_key)
                 current_messages.append({"role": "assistant", "content": response.content})
                 current_messages.append({"role": "user", "content": tool_results})
                 continue
 
-            # Final text response — now stream it
             break
 
         # Stream the final response
-        async with self.client.messages.stream(
-            model=config.MODEL,
-            max_tokens=config.MAX_TOKENS,
-            system=self.system_prompt,
-            messages=current_messages,
-            tools=[SEARCH_TOOL_DEFINITION, IMAGE_SEARCH_TOOL_DEFINITION],
-        ) as stream:
+        async with client.messages.stream(**kwargs, messages=current_messages) as stream:
             async for text in stream.text_stream:
                 yield text
 
-    def _process_tool_calls(self, response) -> list[dict]:
+    def _process_tool_calls(self, response, brave_api_key: str = "") -> list[dict]:
         """Extract tool calls from response and execute them."""
         results = []
         for block in response.content:
             if block.type == "tool_use":
                 if block.name == "web_search":
                     query = block.input.get("query", "")
-                    search_results = execute_search(query)
+                    search_results = execute_search(query, brave_api_key=brave_api_key)
                     formatted = format_search_results(search_results)
                     results.append({
                         "type": "tool_result",
@@ -92,7 +103,7 @@ class Agent:
                     })
                 elif block.name == "image_search":
                     query = block.input.get("query", "")
-                    image_results = execute_image_search(query)
+                    image_results = execute_image_search(query, brave_api_key=brave_api_key)
                     formatted = format_image_results(image_results)
                     results.append({
                         "type": "tool_result",

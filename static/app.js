@@ -6,6 +6,7 @@ const agentsBar = document.getElementById("agents-bar");
 const fileUpload = document.getElementById("file-upload");
 const fileStatus = document.getElementById("file-status");
 const downloadBtn = document.getElementById("download-btn");
+const saveFormat = document.getElementById("save-format");
 const loadBtn = document.getElementById("load-btn");
 const loadInput = document.getElementById("load-input");
 const queuePanel = document.getElementById("queue-panel");
@@ -17,6 +18,15 @@ const btnNext = document.getElementById("btn-next");
 const btnNewRound = document.getElementById("btn-new-round");
 const btnEnd = document.getElementById("btn-end");
 const btnAddAgent = document.getElementById("btn-add-agent");
+
+// Settings refs
+const settingsToggle = document.getElementById("settings-toggle");
+const settingsBody = document.getElementById("settings-body");
+const apiKeyAnthropic = document.getElementById("api-key-anthropic");
+const apiKeyBrave = document.getElementById("api-key-brave");
+const settingsSave = document.getElementById("settings-save");
+const settingsClear = document.getElementById("settings-clear");
+const settingsNotice = document.getElementById("settings-notice");
 
 // ── State ──
 let ws = null;
@@ -31,6 +41,8 @@ let autoRunning = false;      // auto-play mode
 let sessionActive = false;    // WebSocket session is live
 let queue = [];               // [{key, name, avatar, color}]
 let currentRound = 1;
+let currentTopic = "";
+let localMessages = [];
 
 // Drag state
 let dragSrcIndex = null;
@@ -200,6 +212,12 @@ function startSession() {
     if (!topic) return;
     if (sessionActive) return;
 
+    const keys = getApiKeys();
+    if (!keys.anthropic_api_key) {
+        showError("Please add your Claude API key in the settings panel above before starting.");
+        return;
+    }
+
     if (!priorDiscussion) {
         chatArea.innerHTML = "";
     }
@@ -208,9 +226,13 @@ function startSession() {
     currentRound = 1;
     queueRound.textContent = "Round 1";
 
-    submitBtn.disabled = true;
-    topicInput.disabled = true;
-    downloadBtn.disabled = true;
+    currentTopic = topic;
+    submitBtn.disabled = false;
+    topicInput.disabled = false;
+    topicInput.value = "";
+    topicInput.placeholder = "Type your message to interject...";
+    submitBtn.textContent = "Send";
+    downloadBtn.disabled = false;
     queuePanel.classList.add("active");
 
     addDivider(`Topic: "${topic}"`);
@@ -223,6 +245,7 @@ function startSession() {
             topic,
             agents: Array.from(selectedAgents),
             session_id: sessionId,
+            api_keys: keys,
         };
         if (priorDiscussion) {
             payload.prior_discussion = priorDiscussion;
@@ -298,12 +321,20 @@ function handleMessage(data) {
 
         case "user_message":
             addUserMessageToChat(data.content);
+            localMessages.push({
+                agent_name: "user",
+                content: data.content,
+                round_num: data.round || currentRound,
+                timestamp: new Date().toISOString(),
+            });
             break;
 
         case "discussion_end":
             clearAllSpeaking();
             lastExport = data.export || null;
-            downloadBtn.disabled = !lastExport;
+            if (lastExport) {
+                localMessages = lastExport.messages || localMessages;
+            }
             sessionActive = false;
             autoRunning = false;
             isReady = false;
@@ -313,7 +344,9 @@ function handleMessage(data) {
 
         case "export_data":
             lastExport = data.export || null;
-            downloadBtn.disabled = !lastExport;
+            if (lastExport) {
+                localMessages = lastExport.messages || localMessages;
+            }
             break;
 
         case "error":
@@ -407,9 +440,11 @@ btnAddAgent.addEventListener("click", () => {
 
 function sendUserMessage() {
     const msg = topicInput.value.trim();
-    if (!msg || !sessionActive || !isReady) return;
-    isReady = false;
-    updateControls();
+    if (!msg || !sessionActive) return;
+    if (isReady) {
+        isReady = false;
+        updateControls();
+    }
     sendCmd({ action: "user_message", message: msg });
     topicInput.value = "";
 }
@@ -422,6 +457,7 @@ function resetInputMode() {
     topicInput.placeholder = "Enter a topic for discussion...";
     submitBtn.textContent = "Start";
     queuePanel.classList.remove("active");
+    currentTopic = "";
 }
 
 // ── File Upload ──
@@ -445,30 +481,118 @@ fileUpload.addEventListener("change", async () => {
 // ── Save / Load ──
 
 downloadBtn.addEventListener("click", () => {
-    if (!lastExport) return;
-    // If session active, request fresh export first
+    const format = saveFormat?.value || "html";
     if (sessionActive) {
         sendCmd({ action: "get_export" });
-        // Download will happen when export_data arrives — set a flag
         const handler = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === "export_data") {
                 ws.removeEventListener("message", handler);
-                doDownload(data.export);
+                lastExport = data.export || null;
+                const snapshot = getSnapshotExport();
+                if (format === "json") {
+                    doDownloadJson(snapshot);
+                } else {
+                    doDownloadHtml(snapshot);
+                }
             }
         };
         ws.addEventListener("message", handler);
         return;
     }
-    doDownload(lastExport);
+    const snapshot = getSnapshotExport();
+    if (format === "json") {
+        doDownloadJson(snapshot);
+    } else {
+        doDownloadHtml(snapshot);
+    }
 });
 
-function doDownload(exportData) {
+function doDownloadJson(exportData) {
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `thinktank_${exportData.topic.replace(/[^a-z0-9]/gi, "_").slice(0, 40)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function getSnapshotExport() {
+    const base = lastExport || {
+        topic: currentTopic || "Untitled",
+        total_rounds: currentRound,
+        agent_keys: Array.from(selectedAgents),
+        file_context: "",
+        messages: [],
+    };
+
+    return {
+        ...base,
+        topic: currentTopic || base.topic,
+        agent_keys: base.agent_keys?.length ? base.agent_keys : Array.from(selectedAgents),
+        messages: localMessages.length ? localMessages : base.messages,
+    };
+}
+
+const EXPORT_CSS = `
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e0e0e0; padding: 1.5rem; }
+    h1 { font-size: 1.4rem; margin-bottom: 0.2rem; }
+    .subtitle { color: #888; margin-bottom: 1rem; font-size: 0.85rem; }
+    .chat-area { display: flex; flex-direction: column; gap: 0.6rem; }
+    .round-divider { text-align: center; color: #555; font-size: 0.75rem; padding: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.1em; }
+    .message { display: flex; gap: 0.6rem; padding: 0.6rem; border-radius: 10px; background: #1a1d27; border-left: 3px solid var(--agent-color, #4A90D9); }
+    .message.user-message { background: #1b2333; border-left-color: #6cb4ee; }
+    .message-avatar { font-size: 1.3rem; flex-shrink: 0; width: 1.8rem; text-align: center; }
+    .message-body { flex: 1; min-width: 0; }
+    .message-name { font-weight: 600; font-size: 0.8rem; margin-bottom: 0.2rem; color: var(--agent-color, #4A90D9); }
+    .message-content { font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+    .msg-image { display: block; max-width: 100%; max-height: 350px; border-radius: 8px; margin: 0.5rem 0; border: 1px solid #333; object-fit: contain; }
+    .msg-link { color: #6cb4ee; text-decoration: none; word-break: break-all; }
+    .msg-link:hover { text-decoration: underline; }
+`;
+
+function buildExportHtml() {
+    return buildExportHtmlWithData(lastExport);
+}
+
+function buildExportHtmlWithData(exportData) {
+    const clone = chatArea.cloneNode(true);
+    clone.querySelectorAll(".cursor").forEach((el) => el.remove());
+    const title = escapeHtml(
+        exportData?.topic || currentTopic || topicInput.value.trim() || "AI Think Tank Discussion"
+    );
+    const payload = exportData ? JSON.stringify(exportData).replace(/</g, "\\u003c") : "";
+    const payloadBlock = payload
+        ? `<script id="thinktank-export" type="application/json">${payload}</script>`
+        : "";
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>${EXPORT_CSS}</style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="subtitle">Saved from AI Think Tank</div>
+  <div class="chat-area">${clone.innerHTML}</div>
+  ${payloadBlock}
+</body>
+</html>`;
+}
+
+function doDownloadHtml(exportData) {
+    const html = buildExportHtmlWithData(exportData);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const baseName = (exportData?.topic || currentTopic || "thinktank_discussion")
+        .replace(/[^a-z0-9]/gi, "_")
+        .slice(0, 40);
+    a.href = url;
+    a.download = `thinktank_${baseName}.html`;
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -481,34 +605,52 @@ loadInput.addEventListener("change", () => {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const data = JSON.parse(e.target.result);
-            if (!data.topic || !data.messages) { alert("Invalid file."); return; }
-            priorDiscussion = data;
-            topicInput.value = data.topic;
-            if (data.agent_keys && data.agent_keys.length) {
-                selectedAgents = new Set(data.agent_keys);
-                renderAgentChips();
+            const text = e.target.result;
+            if (file.name.toLowerCase().endsWith(".html")) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, "text/html");
+                const payloadEl = doc.getElementById("thinktank-export");
+                if (!payloadEl) { alert("No embedded discussion data found."); return; }
+                const data = JSON.parse(payloadEl.textContent);
+                loadExportData(data);
+            } else {
+                const data = JSON.parse(text);
+                loadExportData(data);
             }
-            chatArea.innerHTML = "";
-            addDivider(`Loaded: "${data.topic}"`);
-            let curRound = 0;
-            for (const msg of data.messages) {
-                if (msg.round_num !== curRound) { curRound = msg.round_num; addDivider(`Round ${curRound}`); }
-                if (msg.agent_name === "user") {
-                    addUserMessageToChat(msg.content);
-                } else {
-                    const ag = allAgents.find((a) => a.name === msg.agent_name);
-                    const el = addAgentMessage(msg.agent_name, ag ? ag.color : "#888", ag ? ag.avatar : "?");
-                    el.querySelector(".message-content").innerHTML = renderMarkdown(msg.content);
-                }
-            }
-            addDivider("Continue the discussion — click Start");
-            scrollToBottom();
         } catch (err) { alert("Failed to parse file."); }
     };
     reader.readAsText(file);
     loadInput.value = "";
 });
+
+function loadExportData(data) {
+    if (!data.topic || !data.messages) { alert("Invalid file."); return; }
+    priorDiscussion = data;
+    lastExport = data;
+    localMessages = data.messages || [];
+    topicInput.value = data.topic;
+    currentTopic = data.topic;
+    if (data.agent_keys && data.agent_keys.length) {
+        selectedAgents = new Set(data.agent_keys);
+        renderAgentChips();
+    }
+    chatArea.innerHTML = "";
+    addDivider(`Loaded: "${data.topic}"`);
+    let curRound = 0;
+    for (const msg of data.messages) {
+        if (msg.round_num !== curRound) { curRound = msg.round_num; addDivider(`Round ${curRound}`); }
+        if (msg.agent_name === "user") {
+            addUserMessageToChat(msg.content);
+        } else {
+            const ag = allAgents.find((a) => a.name === msg.agent_name);
+            const el = addAgentMessage(msg.agent_name, ag ? ag.color : "#888", ag ? ag.avatar : "?");
+            el.querySelector(".message-content").innerHTML = renderMarkdown(msg.content);
+        }
+    }
+    addDivider("Continue the discussion — click Start");
+    scrollToBottom();
+    downloadBtn.disabled = false;
+}
 
 // ── DOM Helpers ──
 
@@ -570,15 +712,26 @@ function finishMessage() {
     // Render markdown (images, links, bold, italic) in the finished message
     const content = currentMessageEl.querySelector(".message-content");
     content.innerHTML = renderMarkdown(content.textContent);
+    const agentName = currentMessageEl.querySelector(".message-name")?.textContent || "";
+    localMessages.push({
+        agent_name: agentName,
+        content: content.textContent,
+        round_num: currentRound,
+        timestamp: new Date().toISOString(),
+    });
     currentMessageEl = null;
 }
 
 function renderMarkdown(text) {
     // Escape HTML first
     let html = escapeHtml(text);
+    const proxy = (url) => {
+        const cleaned = url.replace(/^https?:\/\//i, "");
+        return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}`;
+    };
     // Images: ![alt](url) — on error, replace with a clickable link
     html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-        '<img src="$2" alt="$1" class="msg-image" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<a href=&quot;\'+this.src+\'&quot; target=&quot;_blank&quot; class=&quot;msg-link&quot;>[Image: \'+this.alt+\']</a>\'">');
+        '<img src="' + proxy("$2") + '" data-original="$2" alt="$1" class="msg-image" loading="lazy" crossorigin="anonymous" onerror="if(this.dataset.original){this.src=this.dataset.original;this.removeAttribute(\'data-original\');}else{this.outerHTML=\'<a href=&quot;\'+this.src+\'&quot; target=&quot;_blank&quot; class=&quot;msg-link&quot;>[Image: \'+this.alt+\']</a>\';}">');
     // Links: [text](url)
     html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer" class="msg-link">$1</a>');
@@ -609,7 +762,7 @@ function escapeHtml(str) {
 // ── Main Event Listeners ──
 
 submitBtn.addEventListener("click", () => {
-    if (sessionActive && isReady) {
+    if (sessionActive) {
         sendUserMessage();
     } else if (!sessionActive) {
         startSession();
@@ -618,7 +771,7 @@ submitBtn.addEventListener("click", () => {
 
 topicInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-        if (sessionActive && isReady) {
+        if (sessionActive) {
             sendUserMessage();
         } else if (!sessionActive && !submitBtn.disabled) {
             startSession();
@@ -626,7 +779,85 @@ topicInput.addEventListener("keydown", (e) => {
     }
 });
 
+// ── Settings / API Keys ──
+
+const STORAGE_KEY_ANTHROPIC = "thinktank_api_key_anthropic";
+const STORAGE_KEY_BRAVE = "thinktank_api_key_brave";
+
+function loadSavedKeys() {
+    const savedAnthropic = localStorage.getItem(STORAGE_KEY_ANTHROPIC) || "";
+    const savedBrave = localStorage.getItem(STORAGE_KEY_BRAVE) || "";
+    apiKeyAnthropic.value = savedAnthropic;
+    apiKeyBrave.value = savedBrave;
+    updateSearchBanner();
+}
+
+function saveKeys() {
+    const ak = apiKeyAnthropic.value.trim();
+    const bk = apiKeyBrave.value.trim();
+    if (ak) localStorage.setItem(STORAGE_KEY_ANTHROPIC, ak);
+    else localStorage.removeItem(STORAGE_KEY_ANTHROPIC);
+    if (bk) localStorage.setItem(STORAGE_KEY_BRAVE, bk);
+    else localStorage.removeItem(STORAGE_KEY_BRAVE);
+    settingsNotice.textContent = "Keys saved to this browser.";
+    settingsNotice.className = "settings-notice ok";
+    updateSearchBanner();
+    setTimeout(() => { settingsNotice.textContent = ""; settingsNotice.className = "settings-notice"; }, 3000);
+}
+
+function clearKeys() {
+    localStorage.removeItem(STORAGE_KEY_ANTHROPIC);
+    localStorage.removeItem(STORAGE_KEY_BRAVE);
+    apiKeyAnthropic.value = "";
+    apiKeyBrave.value = "";
+    settingsNotice.textContent = "Keys cleared.";
+    settingsNotice.className = "settings-notice warn";
+    updateSearchBanner();
+    setTimeout(() => { settingsNotice.textContent = ""; settingsNotice.className = "settings-notice"; }, 3000);
+}
+
+function getApiKeys() {
+    return {
+        anthropic_api_key: apiKeyAnthropic.value.trim(),
+        brave_api_key: apiKeyBrave.value.trim(),
+    };
+}
+
+function updateSearchBanner() {
+    let banner = document.getElementById("search-disabled-banner");
+    const hasBrave = apiKeyBrave.value.trim().length > 0;
+    if (!hasBrave) {
+        if (!banner) {
+            banner = document.createElement("div");
+            banner.id = "search-disabled-banner";
+            banner.className = "search-disabled-banner";
+            banner.textContent = "Online search is disabled — add a Brave Search API key in settings above to enable it.";
+            agentsBar.parentNode.insertBefore(banner, agentsBar);
+        }
+    } else if (banner) {
+        banner.remove();
+    }
+}
+
+settingsToggle.addEventListener("click", () => {
+    const open = settingsBody.classList.toggle("open");
+    settingsToggle.innerHTML = open ? "&#9881; API Keys &#9650;" : "&#9881; API Keys &#9660;";
+});
+
+settingsSave.addEventListener("click", saveKeys);
+settingsClear.addEventListener("click", clearKeys);
+
+// ── Mobile Queue Toggle ──
+const queueToggle = document.getElementById("queue-toggle");
+queueToggle.addEventListener("click", () => {
+    queuePanel.classList.toggle("mobile-open");
+    queueToggle.innerHTML = queuePanel.classList.contains("mobile-open")
+        ? "Speaker Queue &#9650;"
+        : "Speaker Queue &#9660;";
+});
+
 // ── Init ──
+loadSavedKeys();
 loadAgents();
 buildQueueFromSelection();
 updateControls();

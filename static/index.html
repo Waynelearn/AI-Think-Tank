@@ -13,9 +13,32 @@
             <p class="subtitle">A round-table of AI minds discussing your topics</p>
         </header>
 
+        <!-- Settings Panel (collapsible) -->
+        <div class="settings-panel">
+            <button class="settings-toggle" id="settings-toggle">&#9881; API Keys &#9660;</button>
+            <div class="settings-body" id="settings-body">
+                <div class="settings-row">
+                    <label for="api-key-anthropic">Claude API Key</label>
+                    <input type="password" id="api-key-anthropic" placeholder="sk-ant-..." autocomplete="off">
+                </div>
+                <div class="settings-row">
+                    <label for="api-key-brave">Brave Search API Key</label>
+                    <input type="password" id="api-key-brave" placeholder="BSA..." autocomplete="off">
+                </div>
+                <div class="settings-actions">
+                    <button id="settings-save" class="settings-btn">Save Keys</button>
+                    <button id="settings-clear" class="settings-btn settings-btn-danger">Clear Keys</button>
+                </div>
+                <div class="settings-notice" id="settings-notice"></div>
+            </div>
+        </div>
+
         <div class="agents-bar" id="agents-bar"></div>
 
         <div class="main-area">
+            <!-- Queue toggle (mobile only) -->
+            <button id="queue-toggle" class="queue-toggle">Speaker Queue &#9660;</button>
+
             <!-- Queue Panel (right side) -->
             <div class="queue-panel" id="queue-panel">
                 <div class="queue-header">
@@ -51,9 +74,13 @@
                 <input type="file" id="file-upload" multiple hidden
                     accept=".csv,.xlsx,.xls,.pdf,.html,.htm,.txt,.md,.json,.log,.py,.js,.ts,.docx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi,.mkv">
                 <span id="file-status" class="file-status"></span>
+                <select id="save-format" class="icon-btn" title="Save format">
+                    <option value="html">Save as HTML</option>
+                    <option value="json">Save as JSON</option>
+                </select>
                 <button id="download-btn" class="icon-btn" title="Download conversation" disabled>&#128190; Save</button>
                 <button id="load-btn" class="icon-btn" title="Load previous conversation">&#128194; Load</button>
-                <input type="file" id="load-input" accept=".json" hidden>
+                <input type="file" id="load-input" accept=".json,.html" hidden>
             </div>
             <div class="input-row">
                 <input type="text" id="topic-input" placeholder="Enter a topic for discussion..." autocomplete="off">

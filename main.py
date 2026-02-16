@@ -56,6 +56,7 @@ async def discuss(websocket: WebSocket):
         agent_keys = payload.get("agents", None)
         session_id = payload.get("session_id", "")
         prior_export = payload.get("prior_discussion", None)
+        api_keys = payload.get("api_keys", {})
 
         if not topic.strip():
             await websocket.send_text(json.dumps({"type": "error", "message": "Topic cannot be empty"}))
@@ -71,6 +72,7 @@ async def discuss(websocket: WebSocket):
             agent_keys=agent_keys,
             file_context=file_context,
             prior_discussion=prior_discussion,
+            api_keys=api_keys,
         )
     except WebSocketDisconnect:
         pass
@@ -79,6 +81,9 @@ async def discuss(websocket: WebSocket):
             await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
         except Exception:
             pass
+    finally:
+        if websocket.client_state.name != "DISCONNECTED":
+            await websocket.close()
 
 
 if __name__ == "__main__":
