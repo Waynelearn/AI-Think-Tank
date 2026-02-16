@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from agents.registry import AgentRegistry
+from agents.providers import get_providers_for_api
 from discussion.engine import DiscussionEngine
 from discussion.models import Discussion
 from discussion.files import process_file
@@ -32,6 +33,11 @@ async def help_page():
 @app.get("/api/agents")
 async def list_agents():
     return registry.list_agents()
+
+
+@app.get("/api/providers")
+async def list_providers():
+    return get_providers_for_api()
 
 
 @app.post("/api/upload")

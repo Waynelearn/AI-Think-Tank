@@ -22,16 +22,24 @@ const btnAddAgent = document.getElementById("btn-add-agent");
 // Settings refs
 const settingsToggle = document.getElementById("settings-toggle");
 const settingsBody = document.getElementById("settings-body");
-const apiKeyAnthropic = document.getElementById("api-key-anthropic");
+const providerSelect = document.getElementById("provider-select");
+const modelSelect = document.getElementById("model-select");
+const apiKeyProvider = document.getElementById("api-key-provider");
 const apiKeyBrave = document.getElementById("api-key-brave");
 const settingsSave = document.getElementById("settings-save");
 const settingsClear = document.getElementById("settings-clear");
 const settingsNotice = document.getElementById("settings-notice");
 
+// Usage refs
+const usageBar = document.getElementById("usage-bar");
+const usageText = document.getElementById("usage-text");
+const usageCost = document.getElementById("usage-cost");
+
 // ── State ──
 let ws = null;
 let currentMessageEl = null;
 let allAgents = [];           // from /api/agents
+let allProviders = [];        // from /api/providers
 let selectedAgents = new Set();
 let sessionId = "";
 let lastExport = null;
@@ -44,8 +52,116 @@ let currentRound = 1;
 let currentTopic = "";
 let localMessages = [];
 
+// Usage tracking
+let totalInputTokens = 0;
+let totalOutputTokens = 0;
+
+// Wake Lock
+let wakeLock = null;
+
+// Heartbeat
+let heartbeatInterval = null;
+
 // Drag state
 let dragSrcIndex = null;
+
+// ── Pricing table (per million tokens) ──
+const PRICING = {
+    "claude-sonnet-4-5-20250929": { input: 3, output: 15 },
+    "claude-haiku-4-5-20251001": { input: 0.80, output: 4 },
+    "gpt-4o": { input: 2.50, output: 10 },
+    "gpt-4o-mini": { input: 0.15, output: 0.60 },
+    "o3-mini": { input: 1.10, output: 4.40 },
+    "deepseek-chat": { input: 0.27, output: 1.10 },
+    "deepseek-reasoner": { input: 0.55, output: 2.19 },
+    "gemini-2.0-flash": { input: 0.10, output: 0.40 },
+    "gemini-2.5-pro-preview-06-05": { input: 1.25, output: 10 },
+    "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 },
+    "mixtral-8x7b-32768": { input: 0.24, output: 0.24 },
+};
+
+function getSelectedModel() {
+    return modelSelect.value || "claude-sonnet-4-5-20250929";
+}
+
+function calculateCost(inputTokens, outputTokens) {
+    const model = getSelectedModel();
+    const price = PRICING[model] || { input: 3, output: 15 };
+    return (inputTokens * price.input + outputTokens * price.output) / 1_000_000;
+}
+
+function formatTokens(n) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+    return n.toString();
+}
+
+function updateUsageDisplay() {
+    if (totalInputTokens === 0 && totalOutputTokens === 0) {
+        usageBar.style.display = "none";
+        return;
+    }
+    usageBar.style.display = "flex";
+    usageText.textContent = `Tokens: ${formatTokens(totalInputTokens)} in / ${formatTokens(totalOutputTokens)} out`;
+    const cost = calculateCost(totalInputTokens, totalOutputTokens);
+    usageCost.textContent = `~$${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(2)}`;
+}
+
+// ── Providers ──
+
+async function loadProviders() {
+    try {
+        const res = await fetch("/api/providers");
+        allProviders = await res.json();
+        populateProviderSelect();
+        loadSavedSettings();
+    } catch (e) {
+        console.error("Failed to load providers:", e);
+    }
+}
+
+function populateProviderSelect() {
+    providerSelect.innerHTML = "";
+    allProviders.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p.key;
+        opt.textContent = p.name;
+        providerSelect.appendChild(opt);
+    });
+    populateModelSelect();
+}
+
+function populateModelSelect() {
+    const providerKey = providerSelect.value;
+    const provider = allProviders.find((p) => p.key === providerKey);
+    modelSelect.innerHTML = "";
+    if (!provider) return;
+    provider.models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.label;
+        modelSelect.appendChild(opt);
+    });
+    // Update placeholder hint for API key
+    const prefix = provider.key_prefix || "";
+    apiKeyProvider.placeholder = prefix ? `${prefix}...` : "API key...";
+    // Load saved key for this provider
+    const savedKey = localStorage.getItem(`thinktank_api_key_${providerKey}`) || "";
+    apiKeyProvider.value = savedKey;
+}
+
+providerSelect.addEventListener("change", () => {
+    populateModelSelect();
+    // Restore saved model for this provider
+    const savedModel = localStorage.getItem(`thinktank_model_${providerSelect.value}`);
+    if (savedModel) {
+        modelSelect.value = savedModel;
+    }
+});
+
+modelSelect.addEventListener("change", () => {
+    localStorage.setItem(`thinktank_model_${providerSelect.value}`, modelSelect.value);
+});
 
 // ── Agents ──
 
@@ -85,7 +201,6 @@ function renderAgentChips() {
                 selectedAgents.add(key);
             }
             renderAgentChips();
-            // If session isn't active, rebuild queue from selection
             if (!sessionActive) buildQueueFromSelection();
         });
     });
@@ -110,7 +225,6 @@ function populateAddSelect() {
 // ── Queue ──
 
 function buildQueueFromSelection() {
-    // Mediator last
     const keys = Array.from(selectedAgents);
     const mediatorKey = keys.find((k) => {
         const a = allAgents.find((x) => x.key === k);
@@ -145,7 +259,6 @@ function renderQueue() {
             <button class="q-remove" data-i="${i}" title="Remove from queue">&times;</button>
         `;
 
-        // Drag events
         el.addEventListener("dragstart", onDragStart);
         el.addEventListener("dragover", onDragOver);
         el.addEventListener("drop", onDrop);
@@ -154,7 +267,6 @@ function renderQueue() {
         queueList.appendChild(el);
     });
 
-    // Arrow and remove buttons
     queueList.querySelectorAll(".q-arrow").forEach((btn) => {
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -205,6 +317,49 @@ function onDragEnd(e) {
     dragSrcIndex = null;
 }
 
+// ── Wake Lock ──
+
+async function acquireWakeLock() {
+    try {
+        if ("wakeLock" in navigator) {
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", () => { wakeLock = null; });
+        }
+    } catch (e) {
+        // Wake Lock not supported or denied — non-critical
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+    }
+}
+
+// Re-acquire wake lock when tab becomes visible again
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && sessionActive) {
+        acquireWakeLock();
+    }
+});
+
+// ── Heartbeat ──
+
+function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatInterval = setInterval(() => {
+        sendCmd({ action: "ping" });
+    }, 20000);
+}
+
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+}
+
 // ── WebSocket Session ──
 
 function startSession() {
@@ -213,14 +368,19 @@ function startSession() {
     if (sessionActive) return;
 
     const keys = getApiKeys();
-    if (!keys.anthropic_api_key) {
-        showError("Please add your Claude API key in the settings panel above before starting.");
+    if (!keys.api_key) {
+        showError("Please add your API key in the settings panel above before starting.");
         return;
     }
 
     if (!priorDiscussion) {
         chatArea.innerHTML = "";
     }
+
+    // Reset usage for new session
+    totalInputTokens = 0;
+    totalOutputTokens = 0;
+    updateUsageDisplay();
 
     buildQueueFromSelection();
     currentRound = 1;
@@ -253,6 +413,8 @@ function startSession() {
         }
         ws.send(JSON.stringify(payload));
         sessionActive = true;
+        acquireWakeLock();
+        startHeartbeat();
     };
 
     ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
@@ -263,6 +425,8 @@ function startSession() {
         autoRunning = false;
         isReady = false;
         ws = null;
+        stopHeartbeat();
+        releaseWakeLock();
         resetInputMode();
     };
 
@@ -270,6 +434,8 @@ function startSession() {
         showError("Connection error. Please try again.");
         sessionActive = false;
         ws = null;
+        stopHeartbeat();
+        releaseWakeLock();
         resetInputMode();
     };
 }
@@ -284,6 +450,10 @@ function sendCmd(cmd) {
 
 function handleMessage(data) {
     switch (data.type) {
+        case "pong":
+            // Heartbeat acknowledged — connection is alive
+            break;
+
         case "ready":
             isReady = true;
             currentRound = data.round || currentRound;
@@ -303,7 +473,6 @@ function handleMessage(data) {
             updateControls();
             currentMessageEl = addAgentMessage(data.agent, data.color, data.avatar);
             setChipSpeaking(data.agent, true);
-            // Remove this agent from the front of the queue display
             if (queue.length && queue[0].name === data.agent) {
                 queue.shift();
                 renderQueue();
@@ -317,6 +486,12 @@ function handleMessage(data) {
         case "agent_done":
             finishMessage();
             setChipSpeaking(data.agent, false);
+            // Update usage
+            if (data.usage) {
+                totalInputTokens += data.usage.input_tokens || 0;
+                totalOutputTokens += data.usage.output_tokens || 0;
+                updateUsageDisplay();
+            }
             break;
 
         case "user_message":
@@ -339,6 +514,8 @@ function handleMessage(data) {
             autoRunning = false;
             isReady = false;
             queuePanel.classList.remove("active");
+            stopHeartbeat();
+            releaseWakeLock();
             resetInputMode();
             break;
 
@@ -408,7 +585,6 @@ btnNext.addEventListener("click", () => {
 btnNewRound.addEventListener("click", () => {
     if (!isReady) return;
     isReady = false;
-    // Rebuild queue for the new round
     buildQueueFromSelection();
     sendCmd({ action: "new_round" });
 });
@@ -436,7 +612,7 @@ btnAddAgent.addEventListener("click", () => {
     updateControls();
 });
 
-// ── User Interjection (input box sends user_message during session) ──
+// ── User Interjection ──
 
 function sendUserMessage() {
     const msg = topicInput.value.trim();
@@ -709,7 +885,6 @@ function finishMessage() {
     if (!currentMessageEl) return;
     const cursor = currentMessageEl.querySelector(".cursor");
     if (cursor) cursor.remove();
-    // Render markdown (images, links, bold, italic) in the finished message
     const content = currentMessageEl.querySelector(".message-content");
     content.innerHTML = renderMarkdown(content.textContent);
     const agentName = currentMessageEl.querySelector(".message-name")?.textContent || "";
@@ -723,23 +898,17 @@ function finishMessage() {
 }
 
 function renderMarkdown(text) {
-    // Escape HTML first
     let html = escapeHtml(text);
     const proxy = (url) => {
         const cleaned = url.replace(/^https?:\/\//i, "");
         return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}`;
     };
-    // Images: ![alt](url) — on error, replace with a clickable link
     html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
         '<img src="' + proxy("$2") + '" data-original="$2" alt="$1" class="msg-image" loading="lazy" crossorigin="anonymous" onerror="if(this.dataset.original){this.src=this.dataset.original;this.removeAttribute(\'data-original\');}else{this.outerHTML=\'<a href=&quot;\'+this.src+\'&quot; target=&quot;_blank&quot; class=&quot;msg-link&quot;>[Image: \'+this.alt+\']</a>\';}">');
-    // Links: [text](url)
     html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer" class="msg-link">$1</a>');
-    // Bold: **text**
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    // Italic: *text*
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    // Bare URLs (not already in a tag)
     html = html.replace(/(?<!="|">)(https?:\/\/[^\s<)"]+)/g,
         '<a href="$1" target="_blank" rel="noopener noreferrer" class="msg-link">$1</a>');
     return html;
@@ -781,36 +950,57 @@ topicInput.addEventListener("keydown", (e) => {
 
 // ── Settings / API Keys ──
 
-const STORAGE_KEY_ANTHROPIC = "thinktank_api_key_anthropic";
 const STORAGE_KEY_BRAVE = "thinktank_api_key_brave";
+const STORAGE_KEY_PROVIDER = "thinktank_provider";
 
-function loadSavedKeys() {
-    const savedAnthropic = localStorage.getItem(STORAGE_KEY_ANTHROPIC) || "";
+function loadSavedSettings() {
+    // Restore provider selection
+    const savedProvider = localStorage.getItem(STORAGE_KEY_PROVIDER);
+    if (savedProvider && allProviders.some((p) => p.key === savedProvider)) {
+        providerSelect.value = savedProvider;
+    }
+    populateModelSelect();
+
+    // Restore model selection
+    const savedModel = localStorage.getItem(`thinktank_model_${providerSelect.value}`);
+    if (savedModel) {
+        modelSelect.value = savedModel;
+    }
+
+    // Restore Brave key
     const savedBrave = localStorage.getItem(STORAGE_KEY_BRAVE) || "";
-    apiKeyAnthropic.value = savedAnthropic;
     apiKeyBrave.value = savedBrave;
+
     updateSearchBanner();
 }
 
-function saveKeys() {
-    const ak = apiKeyAnthropic.value.trim();
+function saveSettings() {
+    const providerKey = providerSelect.value;
+    const ak = apiKeyProvider.value.trim();
     const bk = apiKeyBrave.value.trim();
-    if (ak) localStorage.setItem(STORAGE_KEY_ANTHROPIC, ak);
-    else localStorage.removeItem(STORAGE_KEY_ANTHROPIC);
+
+    localStorage.setItem(STORAGE_KEY_PROVIDER, providerKey);
+    localStorage.setItem(`thinktank_model_${providerKey}`, modelSelect.value);
+
+    if (ak) localStorage.setItem(`thinktank_api_key_${providerKey}`, ak);
+    else localStorage.removeItem(`thinktank_api_key_${providerKey}`);
+
     if (bk) localStorage.setItem(STORAGE_KEY_BRAVE, bk);
     else localStorage.removeItem(STORAGE_KEY_BRAVE);
-    settingsNotice.textContent = "Keys saved to this browser.";
+
+    settingsNotice.textContent = "Settings saved to this browser.";
     settingsNotice.className = "settings-notice ok";
     updateSearchBanner();
     setTimeout(() => { settingsNotice.textContent = ""; settingsNotice.className = "settings-notice"; }, 3000);
 }
 
-function clearKeys() {
-    localStorage.removeItem(STORAGE_KEY_ANTHROPIC);
+function clearSettings() {
+    const providerKey = providerSelect.value;
+    localStorage.removeItem(`thinktank_api_key_${providerKey}`);
     localStorage.removeItem(STORAGE_KEY_BRAVE);
-    apiKeyAnthropic.value = "";
+    apiKeyProvider.value = "";
     apiKeyBrave.value = "";
-    settingsNotice.textContent = "Keys cleared.";
+    settingsNotice.textContent = "Keys cleared for " + (allProviders.find((p) => p.key === providerKey)?.name || providerKey) + ".";
     settingsNotice.className = "settings-notice warn";
     updateSearchBanner();
     setTimeout(() => { settingsNotice.textContent = ""; settingsNotice.className = "settings-notice"; }, 3000);
@@ -818,7 +1008,9 @@ function clearKeys() {
 
 function getApiKeys() {
     return {
-        anthropic_api_key: apiKeyAnthropic.value.trim(),
+        provider: providerSelect.value,
+        model: modelSelect.value,
+        api_key: apiKeyProvider.value.trim(),
         brave_api_key: apiKeyBrave.value.trim(),
     };
 }
@@ -841,11 +1033,11 @@ function updateSearchBanner() {
 
 settingsToggle.addEventListener("click", () => {
     const open = settingsBody.classList.toggle("open");
-    settingsToggle.innerHTML = open ? "&#9881; API Keys &#9650;" : "&#9881; API Keys &#9660;";
+    settingsToggle.innerHTML = open ? "&#9881; Settings &#9650;" : "&#9881; Settings &#9660;";
 });
 
-settingsSave.addEventListener("click", saveKeys);
-settingsClear.addEventListener("click", clearKeys);
+settingsSave.addEventListener("click", saveSettings);
+settingsClear.addEventListener("click", clearSettings);
 
 // ── Mobile Queue Toggle ──
 const queueToggle = document.getElementById("queue-toggle");
@@ -857,7 +1049,7 @@ queueToggle.addEventListener("click", () => {
 });
 
 // ── Init ──
-loadSavedKeys();
+loadProviders();
 loadAgents();
 buildQueueFromSelection();
 updateControls();

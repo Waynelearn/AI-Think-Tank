@@ -2,6 +2,7 @@ import json
 import asyncio
 from fastapi import WebSocket
 from agents.registry import AgentRegistry
+from agents.providers import Usage
 from .models import Discussion, Message
 
 
@@ -44,7 +45,10 @@ class DiscussionEngine:
             cmd = json.loads(raw)
             action = cmd.get("action", "")
 
-            if action == "run_agent":
+            if action == "ping":
+                await self._send(websocket, {"type": "pong"})
+
+            elif action == "run_agent":
                 agent_key = cmd.get("agent_key", "")
                 agent = self.registry.get_agent(agent_key) if agent_key in self.registry.agents else None
                 if not agent:
@@ -119,14 +123,18 @@ class DiscussionEngine:
         })
 
         full_response = ""
-        async for chunk in agent.stream_response(messages, api_keys=api_keys):
-            full_response += chunk
-            await self._send(websocket, {
-                "type": "agent_chunk",
-                "agent": agent.name,
-                "chunk": chunk,
-            })
-            await self._drain_user_messages(websocket, discussion, round_num)
+        usage = Usage()
+        async for item in agent.stream_response(messages, api_keys=api_keys):
+            if isinstance(item, Usage):
+                usage = item
+            else:
+                full_response += item
+                await self._send(websocket, {
+                    "type": "agent_chunk",
+                    "agent": agent.name,
+                    "chunk": item,
+                })
+                await self._drain_user_messages(websocket, discussion, round_num)
 
         discussion.add_message(Message(
             agent_name=agent.name,
@@ -137,6 +145,7 @@ class DiscussionEngine:
         await self._send(websocket, {
             "type": "agent_done",
             "agent": agent.name,
+            "usage": usage.to_dict(),
         })
 
     async def _drain_user_messages(self, websocket: WebSocket, discussion: Discussion, round_num: int):
@@ -154,8 +163,11 @@ class DiscussionEngine:
             except json.JSONDecodeError:
                 continue
 
+            if cmd.get("action") == "ping":
+                await self._send(websocket, {"type": "pong"})
+                continue
+
             if cmd.get("action") != "user_message":
-                # Ignore non-user actions during streaming to avoid disrupting flow.
                 continue
 
             content = cmd.get("message", "").strip()
@@ -223,4 +235,8 @@ class DiscussionEngine:
         }]
 
     async def _send(self, websocket: WebSocket, data: dict):
-        await websocket.send_text(json.dumps(data))
+        """Send data to the frontend, silently ignoring connection errors."""
+        try:
+            await websocket.send_text(json.dumps(data))
+        except Exception:
+            pass

@@ -17,22 +17,36 @@
 
         <!-- Settings Panel (collapsible) -->
         <div class="settings-panel">
-            <button class="settings-toggle" id="settings-toggle">&#9881; API Keys &#9660;</button>
+            <button class="settings-toggle" id="settings-toggle">&#9881; Settings &#9660;</button>
             <div class="settings-body" id="settings-body">
                 <div class="settings-row">
-                    <label for="api-key-anthropic">Claude API Key</label>
-                    <input type="password" id="api-key-anthropic" placeholder="sk-ant-..." autocomplete="off">
+                    <label for="provider-select">Provider</label>
+                    <select id="provider-select"></select>
                 </div>
                 <div class="settings-row">
-                    <label for="api-key-brave">Brave Search API Key</label>
+                    <label for="model-select">Model</label>
+                    <select id="model-select"></select>
+                </div>
+                <div class="settings-row">
+                    <label for="api-key-provider">API Key</label>
+                    <input type="password" id="api-key-provider" placeholder="sk-ant-..." autocomplete="off">
+                </div>
+                <div class="settings-row">
+                    <label for="api-key-brave">Brave Search Key</label>
                     <input type="password" id="api-key-brave" placeholder="BSA..." autocomplete="off">
                 </div>
                 <div class="settings-actions">
-                    <button id="settings-save" class="settings-btn">Save Keys</button>
-                    <button id="settings-clear" class="settings-btn settings-btn-danger">Clear Keys</button>
+                    <button id="settings-save" class="settings-btn">Save</button>
+                    <button id="settings-clear" class="settings-btn settings-btn-danger">Clear</button>
                 </div>
                 <div class="settings-notice" id="settings-notice"></div>
             </div>
+        </div>
+
+        <!-- Usage Bar -->
+        <div class="usage-bar" id="usage-bar" style="display:none;">
+            <span id="usage-text">Tokens: 0 in / 0 out</span>
+            <span id="usage-cost">~$0.00</span>
         </div>
 
         <div class="agents-bar" id="agents-bar"></div>
