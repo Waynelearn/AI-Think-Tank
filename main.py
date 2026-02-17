@@ -68,11 +68,11 @@ async def get_session_info(session_id: str):
 
 
 @app.get("/api/sessions")
-async def list_sessions_api():
-    sessions = list_sessions(limit=10)
+async def list_sessions_api(client_id: str = ""):
+    sessions = list_sessions(client_id=client_id, limit=10)
     for s in sessions:
         s["agent_keys"] = json.loads(s["agent_keys"])
-    return {"sessions": sessions, "count": count_sessions()}
+    return {"sessions": sessions, "count": count_sessions(client_id=client_id)}
 
 
 @app.delete("/api/sessions/{session_id}")
@@ -115,6 +115,7 @@ async def discuss(websocket: WebSocket):
         session_id = payload.get("session_id", "")
         prior_export = payload.get("prior_discussion", None)
         api_keys = payload.get("api_keys", {})
+        client_id = payload.get("client_id", "")
 
         prior_discussion = None
 
@@ -153,6 +154,7 @@ async def discuss(websocket: WebSocket):
                 provider=api_keys.get("provider", ""),
                 model=api_keys.get("model", ""),
                 discussion_state=discussion_for_db.export(),
+                client_id=client_id,
             )
 
         # Tell frontend the session_id so it can persist it

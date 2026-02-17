@@ -57,6 +57,17 @@ let localMessages = [];
 // Persistent session
 let persistentSessionId = localStorage.getItem("thinktank_session_id") || "";
 
+// Client identity (per-browser, for session privacy)
+function getClientId() {
+    let id = localStorage.getItem("thinktank_client_id");
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem("thinktank_client_id", id);
+    }
+    return id;
+}
+const clientId = getClientId();
+
 // Session limit
 const MAX_SESSIONS = 10;
 
@@ -400,7 +411,7 @@ function clearPersistedSession() {
 
 async function loadSessionHistory() {
     try {
-        const res = await fetch("/api/sessions");
+        const res = await fetch(`/api/sessions?client_id=${encodeURIComponent(clientId)}`);
         const data = await res.json();
         const sessions = data.sessions || [];
         const totalCount = data.count || 0;
@@ -622,7 +633,7 @@ async function startSession(isResume = false) {
     // Check session limit before creating new session
     if (!isResume && !persistentSessionId) {
         try {
-            const res = await fetch("/api/sessions");
+            const res = await fetch(`/api/sessions?client_id=${encodeURIComponent(clientId)}`);
             const data = await res.json();
             if (data.count >= MAX_SESSIONS) {
                 showError(`Session limit reached (${MAX_SESSIONS}). Please delete an old chat before starting a new one.`);
@@ -676,6 +687,7 @@ async function startSession(isResume = false) {
             agents: Array.from(selectedAgents),
             file_session_id: fileSessionId,
             api_keys: keys,
+            client_id: clientId,
         };
         if (isResume && persistentSessionId) {
             payload.session_id = persistentSessionId;

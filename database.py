@@ -41,6 +41,7 @@ def init_db():
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY,
+            client_id TEXT NOT NULL DEFAULT '',
             topic TEXT NOT NULL,
             agent_keys TEXT NOT NULL DEFAULT '[]',
             provider TEXT DEFAULT '',
@@ -71,19 +72,27 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_receipts_timestamp ON chat_receipts(timestamp);
         CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
     """)
+    # Migration: add client_id column to existing tables
+    try:
+        conn.execute("ALTER TABLE sessions ADD COLUMN client_id TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_client ON sessions(client_id)")
+    conn.commit()
     conn.close()
 
 
 def create_session(topic: str, agent_keys: list[str], provider: str,
-                   model: str, discussion_state: dict) -> str:
+                   model: str, discussion_state: dict,
+                   client_id: str = "") -> str:
     session_id = uuid.uuid4().hex
     now = datetime.now().isoformat()
     conn = _get_conn()
     conn.execute(
-        """INSERT INTO sessions (id, topic, agent_keys, provider, model,
+        """INSERT INTO sessions (id, client_id, topic, agent_keys, provider, model,
            discussion_state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (session_id, topic, json.dumps(agent_keys), provider, model,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (session_id, client_id, topic, json.dumps(agent_keys), provider, model,
          json.dumps(discussion_state), now, now),
     )
     conn.commit()
@@ -127,22 +136,26 @@ def end_session(session_id: str):
     conn.close()
 
 
-def list_sessions(limit: int = 10) -> list[dict]:
+def list_sessions(client_id: str = "", limit: int = 10) -> list[dict]:
     conn = _get_conn()
     rows = conn.execute("""
         SELECT s.id, s.topic, s.agent_keys, s.provider, s.model,
                s.current_round, s.status, s.created_at, s.updated_at
         FROM sessions s
+        WHERE s.client_id = ?
         ORDER BY s.updated_at DESC
         LIMIT ?
-    """, (limit,)).fetchall()
+    """, (client_id, limit)).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def count_sessions() -> int:
+def count_sessions(client_id: str = "") -> int:
     conn = _get_conn()
-    row = conn.execute("SELECT COUNT(*) as cnt FROM sessions").fetchone()
+    row = conn.execute(
+        "SELECT COUNT(*) as cnt FROM sessions WHERE client_id = ?",
+        (client_id,),
+    ).fetchone()
     conn.close()
     return row["cnt"]
 
