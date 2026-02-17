@@ -19,6 +19,7 @@ const btnNewRound = document.getElementById("btn-new-round");
 const btnEnd = document.getElementById("btn-end");
 const btnAddAgent = document.getElementById("btn-add-agent");
 const btnNewChat = document.getElementById("btn-new-chat");
+const btnHistory = document.getElementById("btn-history");
 
 // Settings refs
 const settingsToggle = document.getElementById("settings-toggle");
@@ -907,6 +908,17 @@ btnAddAgent.addEventListener("click", () => {
 
 btnNewChat.addEventListener("click", () => {
     newChat();
+});
+
+// ── History Toggle ──
+
+btnHistory.addEventListener("click", () => {
+    const existing = document.getElementById("history-panel");
+    if (existing) {
+        existing.remove();
+    } else {
+        loadSessionHistory();
+    }
 });
 
 // ── User Interjection ──

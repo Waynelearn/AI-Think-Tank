@@ -67,6 +67,8 @@ header h1 {
 /* ── Settings Panel ── */
 .settings-panel {
     flex-shrink: 0;
+    position: relative;
+    z-index: 20;
 }
 
 .settings-toggle {
@@ -96,6 +98,12 @@ header h1 {
     border-top: none;
     border-radius: 0 0 8px 8px;
     padding: 0 0.6rem;
+    /* Overlay: float over content below instead of pushing it */
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 20;
 }
 
 .settings-body.open {
@@ -666,6 +674,17 @@ header h1 {
 #btn-new-chat:hover {
     background: #1a2e1f;
     color: #2ECC71;
+}
+
+/* History toggle button */
+#btn-history {
+    color: #6cb4ee;
+    border-color: #4A90D9;
+}
+
+#btn-history:hover {
+    background: #1a2333;
+    color: #fff;
 }
 
 /* Session history panel */
