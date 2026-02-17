@@ -11,6 +11,7 @@ from discussion.models import Discussion
 from discussion.files import process_file
 from database import (
     init_db, create_session, get_session, get_usage_summary,
+    list_sessions, count_sessions, delete_session,
 )
 
 app = FastAPI(title="AI Think Tank")
@@ -64,6 +65,20 @@ async def get_session_info(session_id: str):
         "provider": session["provider"],
         "model": session["model"],
     }
+
+
+@app.get("/api/sessions")
+async def list_sessions_api():
+    sessions = list_sessions(limit=10)
+    for s in sessions:
+        s["agent_keys"] = json.loads(s["agent_keys"])
+    return {"sessions": sessions, "count": count_sessions()}
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session_api(session_id: str):
+    delete_session(session_id)
+    return {"ok": True}
 
 
 @app.get("/api/admin/usage")

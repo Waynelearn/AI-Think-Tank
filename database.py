@@ -94,7 +94,7 @@ def create_session(topic: str, agent_keys: list[str], provider: str,
 def get_session(session_id: str) -> dict | None:
     conn = _get_conn()
     row = conn.execute(
-        "SELECT * FROM sessions WHERE id = ? AND status = 'active'",
+        "SELECT * FROM sessions WHERE id = ?",
         (session_id,),
     ).fetchone()
     conn.close()
@@ -119,10 +119,38 @@ def end_session(session_id: str):
     now = datetime.now().isoformat()
     conn = _get_conn()
     conn.execute(
-        """UPDATE sessions SET status = 'ended', discussion_state = '{}', updated_at = ?
+        """UPDATE sessions SET status = 'ended', updated_at = ?
            WHERE id = ?""",
         (now, session_id),
     )
+    conn.commit()
+    conn.close()
+
+
+def list_sessions(limit: int = 10) -> list[dict]:
+    conn = _get_conn()
+    rows = conn.execute("""
+        SELECT s.id, s.topic, s.agent_keys, s.provider, s.model,
+               s.current_round, s.status, s.created_at, s.updated_at
+        FROM sessions s
+        ORDER BY s.updated_at DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def count_sessions() -> int:
+    conn = _get_conn()
+    row = conn.execute("SELECT COUNT(*) as cnt FROM sessions").fetchone()
+    conn.close()
+    return row["cnt"]
+
+
+def delete_session(session_id: str):
+    conn = _get_conn()
+    conn.execute("DELETE FROM chat_receipts WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
     conn.commit()
     conn.close()
 

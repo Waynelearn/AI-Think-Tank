@@ -185,6 +185,7 @@ header h1 {
     align-items: center;
     gap: 0.8rem;
     padding: 0.25rem 0.6rem;
+    margin-top: 0.4rem;
     background: #151821;
     border: 1px solid #222;
     border-radius: 6px;
@@ -665,6 +666,104 @@ header h1 {
 #btn-new-chat:hover {
     background: #1a2e1f;
     color: #2ECC71;
+}
+
+/* Session history panel */
+.history-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.6rem;
+    background: #151821;
+    border: 1px solid #222;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+}
+
+.history-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #aaa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-count {
+    font-size: 0.7rem;
+    color: #666;
+    font-weight: 400;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.5rem;
+    background: #1a1d27;
+    border-radius: 6px;
+    border-left: 2px solid #4A90D9;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 0.78rem;
+}
+
+.history-item:hover {
+    background: #222638;
+}
+
+.history-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-item-topic {
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item-meta {
+    font-size: 0.65rem;
+    color: #666;
+    margin-top: 0.1rem;
+}
+
+.history-item-delete {
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0.2rem 0.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.history-item-delete:hover {
+    color: #E74C3C;
+    background: #2d1b1b;
+}
+
+.history-limit-msg {
+    font-size: 0.72rem;
+    color: #E67E22;
+    background: #2d2517;
+    border: 1px solid #5c4a20;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    text-align: center;
 }
 
 /* Scrollbar */

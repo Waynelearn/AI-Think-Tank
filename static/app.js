@@ -56,6 +56,9 @@ let localMessages = [];
 // Persistent session
 let persistentSessionId = localStorage.getItem("thinktank_session_id") || "";
 
+// Session limit
+const MAX_SESSIONS = 10;
+
 // Usage tracking
 let totalInputTokens = 0;
 let totalOutputTokens = 0;
@@ -146,17 +149,14 @@ function populateModelSelect() {
         opt.textContent = m.label;
         modelSelect.appendChild(opt);
     });
-    // Update placeholder hint for API key
     const prefix = provider.key_prefix || "";
     apiKeyProvider.placeholder = prefix ? `${prefix}...` : "API key...";
-    // Load saved key for this provider
     const savedKey = localStorage.getItem(`thinktank_api_key_${providerKey}`) || "";
     apiKeyProvider.value = savedKey;
 }
 
 providerSelect.addEventListener("change", () => {
     populateModelSelect();
-    // Restore saved model for this provider
     const savedModel = localStorage.getItem(`thinktank_model_${providerSelect.value}`);
     if (savedModel) {
         modelSelect.value = savedModel;
@@ -341,7 +341,6 @@ function releaseWakeLock() {
     }
 }
 
-// Re-acquire wake lock when tab becomes visible again
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && sessionActive) {
         acquireWakeLock();
@@ -379,9 +378,9 @@ function saveSessionMessages() {
     }
 }
 
-function loadSessionMessages(sessionId) {
+function loadSessionMessages(sid) {
     try {
-        const raw = localStorage.getItem(`thinktank_messages_${sessionId}`);
+        const raw = localStorage.getItem(`thinktank_messages_${sid}`);
         return raw ? JSON.parse(raw) : [];
     } catch (e) {
         return [];
@@ -396,53 +395,118 @@ function clearPersistedSession() {
     persistentSessionId = "";
 }
 
-async function checkExistingSession() {
-    if (!persistentSessionId) return;
+// ── Session History ──
+
+async function loadSessionHistory() {
     try {
-        const res = await fetch(`/api/sessions/${persistentSessionId}`);
-        const session = await res.json();
-        if (session.error) {
-            clearPersistedSession();
-            return;
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+        const sessions = data.sessions || [];
+        const totalCount = data.count || 0;
+
+        // Remove old history/resume panels
+        const oldPanel = document.getElementById("history-panel");
+        if (oldPanel) oldPanel.remove();
+        const oldBanner = document.getElementById("resume-banner");
+        if (oldBanner) oldBanner.remove();
+
+        if (sessions.length === 0) return;
+
+        const panel = document.createElement("div");
+        panel.id = "history-panel";
+        panel.className = "history-panel";
+
+        let html = `
+            <div class="history-title">
+                <span>Recent Chats</span>
+                <span class="history-count">${totalCount} / ${MAX_SESSIONS}</span>
+            </div>`;
+
+        if (totalCount >= MAX_SESSIONS) {
+            html += `<div class="history-limit-msg">Session limit reached (${MAX_SESSIONS}). Delete a chat to start a new one.</div>`;
         }
-        showResumeBanner(session);
+
+        html += `<div class="history-list">`;
+        for (const s of sessions) {
+            const topicPreview = s.topic.length > 50
+                ? s.topic.substring(0, 50) + "..."
+                : s.topic;
+            const date = new Date(s.updated_at).toLocaleDateString();
+            const isCurrent = s.id === persistentSessionId;
+            const borderColor = isCurrent ? "#27AE60" : "#4A90D9";
+            html += `
+                <div class="history-item" data-sid="${s.id}" style="border-left-color: ${borderColor}">
+                    <div class="history-item-body" data-sid="${s.id}" data-action="resume">
+                        <div class="history-item-topic">${isCurrent ? "&#9654; " : ""}${escapeHtml(topicPreview)}</div>
+                        <div class="history-item-meta">Round ${s.current_round} &middot; ${date}${isCurrent ? " &middot; current" : ""}</div>
+                    </div>
+                    <button class="history-item-delete" data-sid="${s.id}" data-action="delete" title="Delete this chat">&times;</button>
+                </div>`;
+        }
+        html += `</div>`;
+        panel.innerHTML = html;
+
+        // Insert before chat area
+        chatArea.parentNode.insertBefore(panel, chatArea);
+
+        // Wire up clicks
+        panel.querySelectorAll("[data-action='resume']").forEach((el) => {
+            el.addEventListener("click", () => {
+                const sid = el.dataset.sid;
+                resumeSessionById(sid);
+            });
+        });
+
+        panel.querySelectorAll("[data-action='delete']").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.stopPropagation();
+                const sid = btn.dataset.sid;
+                if (!confirm("Delete this chat permanently?")) return;
+                await deleteSessionById(sid);
+            });
+        });
     } catch (e) {
-        clearPersistedSession();
+        console.error("Failed to load session history:", e);
     }
 }
 
-function showResumeBanner(session) {
-    // Remove existing banner if any
-    const existing = document.getElementById("resume-banner");
-    if (existing) existing.remove();
+async function resumeSessionById(sid) {
+    try {
+        const res = await fetch(`/api/sessions/${sid}`);
+        const session = await res.json();
+        if (session.error) {
+            showError("Session not found.");
+            loadSessionHistory();
+            return;
+        }
+        // Remove history panel
+        const panel = document.getElementById("history-panel");
+        if (panel) panel.remove();
 
-    const banner = document.createElement("div");
-    banner.id = "resume-banner";
-    banner.className = "resume-banner";
+        // Set as current session
+        persistentSessionId = sid;
+        localStorage.setItem("thinktank_session_id", sid);
 
-    const topicPreview = session.topic.length > 60
-        ? session.topic.substring(0, 60) + "..."
-        : session.topic;
-
-    banner.innerHTML = `
-        <span class="resume-text">Resume: "${escapeHtml(topicPreview)}"? (Round ${session.current_round})</span>
-        <div class="resume-actions">
-            <button class="resume-btn" id="btn-resume">Resume</button>
-            <button class="newchat-btn" id="btn-resume-new">New Chat</button>
-        </div>
-    `;
-
-    chatArea.parentNode.insertBefore(banner, chatArea);
-
-    document.getElementById("btn-resume").addEventListener("click", () => {
-        banner.remove();
         resumeSession(session);
-    });
+    } catch (e) {
+        showError("Failed to load session.");
+    }
+}
 
-    document.getElementById("btn-resume-new").addEventListener("click", () => {
-        banner.remove();
-        newChat();
-    });
+async function deleteSessionById(sid) {
+    try {
+        await fetch(`/api/sessions/${sid}`, { method: "DELETE" });
+        // If deleting the current session, clear it
+        if (sid === persistentSessionId) {
+            clearPersistedSession();
+        }
+        // Also remove localStorage messages for this session
+        localStorage.removeItem(`thinktank_messages_${sid}`);
+        // Refresh history
+        loadSessionHistory();
+    } catch (e) {
+        showError("Failed to delete session.");
+    }
 }
 
 function resumeSession(session) {
@@ -488,17 +552,15 @@ function resumeSession(session) {
 }
 
 function newChat() {
-    // End current WS if active
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        sendCmd({ action: "end" });
-    }
+    // Just close the WS — don't send "end" so session stays resumable in DB
     if (ws) {
         ws.close();
         ws = null;
     }
 
-    // Clear persistent session
-    clearPersistedSession();
+    // Clear current persistent session from localStorage (but keep it in DB)
+    localStorage.removeItem("thinktank_session_id");
+    persistentSessionId = "";
 
     // Reset all state
     sessionActive = false;
@@ -527,7 +589,9 @@ function newChat() {
     stopHeartbeat();
     releaseWakeLock();
 
-    // Remove resume banner if present
+    // Remove history/resume panels
+    const panel = document.getElementById("history-panel");
+    if (panel) panel.remove();
     const banner = document.getElementById("resume-banner");
     if (banner) banner.remove();
 
@@ -536,11 +600,14 @@ function newChat() {
     renderAgentChips();
     buildQueueFromSelection();
     updateControls();
+
+    // Show updated history
+    loadSessionHistory();
 }
 
 // ── WebSocket Session ──
 
-function startSession(isResume = false) {
+async function startSession(isResume = false) {
     const topic = isResume ? currentTopic : topicInput.value.trim();
     if (!topic) return;
     if (sessionActive) return;
@@ -551,12 +618,30 @@ function startSession(isResume = false) {
         return;
     }
 
+    // Check session limit before creating new session
+    if (!isResume && !persistentSessionId) {
+        try {
+            const res = await fetch("/api/sessions");
+            const data = await res.json();
+            if (data.count >= MAX_SESSIONS) {
+                showError(`Session limit reached (${MAX_SESSIONS}). Please delete an old chat before starting a new one.`);
+                loadSessionHistory();
+                return;
+            }
+        } catch (e) {
+            // If check fails, proceed anyway
+        }
+    }
+
+    // Remove history panel when starting
+    const panel = document.getElementById("history-panel");
+    if (panel) panel.remove();
+
     if (!isResume && !priorDiscussion) {
         chatArea.innerHTML = "";
     }
 
     if (!isResume) {
-        // Reset usage for new session
         totalInputTokens = 0;
         totalOutputTokens = 0;
         updateUsageDisplay();
@@ -591,7 +676,6 @@ function startSession(isResume = false) {
             file_session_id: fileSessionId,
             api_keys: keys,
         };
-        // For resume, send persistent session_id so backend loads state from DB
         if (isResume && persistentSessionId) {
             payload.session_id = persistentSessionId;
         }
@@ -616,7 +700,6 @@ function startSession(isResume = false) {
         stopHeartbeat();
         releaseWakeLock();
 
-        // If we have a persistent session, show reconnect state instead of full reset
         if (persistentSessionId) {
             topicInput.disabled = false;
             submitBtn.disabled = false;
@@ -653,11 +736,9 @@ function sendCmd(cmd) {
 function handleMessage(data) {
     switch (data.type) {
         case "pong":
-            // Heartbeat acknowledged — connection is alive
             break;
 
         case "session_created":
-            // Save persistent session_id
             persistentSessionId = data.session_id;
             localStorage.setItem("thinktank_session_id", persistentSessionId);
             break;
@@ -694,13 +775,11 @@ function handleMessage(data) {
         case "agent_done":
             finishMessage();
             setChipSpeaking(data.agent, false);
-            // Update usage
             if (data.usage) {
                 totalInputTokens += data.usage.input_tokens || 0;
                 totalOutputTokens += data.usage.output_tokens || 0;
                 updateUsageDisplay();
             }
-            // Persist messages to localStorage
             saveSessionMessages();
             break;
 
@@ -727,7 +806,7 @@ function handleMessage(data) {
             queuePanel.classList.remove("active");
             stopHeartbeat();
             releaseWakeLock();
-            clearPersistedSession();
+            // Don't clear persistent session — it stays in DB for history
             resetInputMode();
             break;
 
@@ -1153,12 +1232,10 @@ submitBtn.addEventListener("click", () => {
     if (sessionActive) {
         sendUserMessage();
     } else if (submitBtn.textContent === "Reconnect" && persistentSessionId) {
-        // Reconnect to existing session
         submitBtn.textContent = "Connecting...";
         submitBtn.disabled = true;
-        checkExistingSession().then(() => {
-            // If no banner was shown (session ended), just reset
-            if (!document.getElementById("resume-banner")) {
+        resumeSessionById(persistentSessionId).then(() => {
+            if (!sessionActive) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Start";
             }
@@ -1195,20 +1272,17 @@ const STORAGE_KEY_BRAVE = "thinktank_api_key_brave";
 const STORAGE_KEY_PROVIDER = "thinktank_provider";
 
 function loadSavedSettings() {
-    // Restore provider selection
     const savedProvider = localStorage.getItem(STORAGE_KEY_PROVIDER);
     if (savedProvider && allProviders.some((p) => p.key === savedProvider)) {
         providerSelect.value = savedProvider;
     }
     populateModelSelect();
 
-    // Restore model selection
     const savedModel = localStorage.getItem(`thinktank_model_${providerSelect.value}`);
     if (savedModel) {
         modelSelect.value = savedModel;
     }
 
-    // Restore Brave key
     const savedBrave = localStorage.getItem(STORAGE_KEY_BRAVE) || "";
     apiKeyBrave.value = savedBrave;
 
@@ -1294,6 +1368,5 @@ loadProviders();
 loadAgents().then(() => {
     buildQueueFromSelection();
     updateControls();
-    // Check for existing session after agents are loaded
-    checkExistingSession();
+    loadSessionHistory();
 });
