@@ -9,6 +9,9 @@ from agents.providers import get_providers_for_api
 from discussion.engine import DiscussionEngine
 from discussion.models import Discussion
 from discussion.files import process_file
+from database import (
+    init_db, create_session, get_session, get_usage_summary,
+)
 
 app = FastAPI(title="AI Think Tank")
 
@@ -16,6 +19,8 @@ registry = AgentRegistry()
 engine = DiscussionEngine(registry)
 
 file_contexts: dict[str, str] = {}
+
+init_db()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -30,6 +35,11 @@ async def help_page():
     return FileResponse("static/help.html")
 
 
+@app.get("/admin")
+async def admin_page():
+    return FileResponse("static/admin.html")
+
+
 @app.get("/api/agents")
 async def list_agents():
     return registry.list_agents()
@@ -38,6 +48,27 @@ async def list_agents():
 @app.get("/api/providers")
 async def list_providers():
     return get_providers_for_api()
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session_info(session_id: str):
+    session = get_session(session_id)
+    if not session:
+        return {"error": "Session not found or ended"}
+    return {
+        "session_id": session["id"],
+        "topic": session["topic"],
+        "agent_keys": json.loads(session["agent_keys"]),
+        "current_round": session["current_round"],
+        "status": session["status"],
+        "provider": session["provider"],
+        "model": session["model"],
+    }
+
+
+@app.get("/api/admin/usage")
+async def admin_usage(start_date: str = None, end_date: str = None):
+    return get_usage_summary(start_date, end_date)
 
 
 @app.post("/api/upload")
@@ -51,9 +82,9 @@ async def upload_files(files: list[UploadFile] = File(...)):
         parts.append(extracted)
         filenames.append(f.filename)
     combined = "\n\n".join(parts)
-    session_id = str(hash(combined))[:12]
-    file_contexts[session_id] = combined
-    return {"session_id": session_id, "filenames": filenames, "preview": combined[:500]}
+    file_session_id = str(hash(combined))[:12]
+    file_contexts[file_session_id] = combined
+    return {"file_session_id": file_session_id, "filenames": filenames, "preview": combined[:500]}
 
 
 @app.websocket("/ws/discuss")
@@ -65,17 +96,55 @@ async def discuss(websocket: WebSocket):
         payload = json.loads(data)
         topic = payload.get("topic", "")
         agent_keys = payload.get("agents", None)
+        file_session_id = payload.get("file_session_id", "")
         session_id = payload.get("session_id", "")
         prior_export = payload.get("prior_discussion", None)
         api_keys = payload.get("api_keys", {})
+
+        prior_discussion = None
+
+        # Try to resume existing persistent session
+        if session_id:
+            session = get_session(session_id)
+            if session and session["status"] == "active":
+                discussion_state = json.loads(session["discussion_state"])
+                prior_discussion = Discussion.from_export(discussion_state)
+                topic = session["topic"]
+                agent_keys = json.loads(session["agent_keys"])
+            else:
+                session_id = ""  # Session not found or ended, will create new
 
         if not topic.strip():
             await websocket.send_text(json.dumps({"type": "error", "message": "Topic cannot be empty"}))
             await websocket.close()
             return
 
-        file_context = file_contexts.get(session_id, "")
-        prior_discussion = Discussion.from_export(prior_export) if prior_export else None
+        file_context = file_contexts.get(file_session_id, "")
+
+        # Load from prior_export if provided (file load) and no persistent session
+        if prior_export and not prior_discussion:
+            prior_discussion = Discussion.from_export(prior_export)
+
+        # Create new persistent session if none loaded
+        if not session_id:
+            discussion_for_db = Discussion(
+                topic=topic,
+                agent_keys=agent_keys or [],
+                file_context=file_context,
+            )
+            session_id = create_session(
+                topic=topic,
+                agent_keys=agent_keys or [],
+                provider=api_keys.get("provider", ""),
+                model=api_keys.get("model", ""),
+                discussion_state=discussion_for_db.export(),
+            )
+
+        # Tell frontend the session_id so it can persist it
+        await websocket.send_text(json.dumps({
+            "type": "session_created",
+            "session_id": session_id,
+        }))
 
         # Hand off to command-driven session loop
         await engine.run_session(
@@ -84,6 +153,7 @@ async def discuss(websocket: WebSocket):
             file_context=file_context,
             prior_discussion=prior_discussion,
             api_keys=api_keys,
+            session_id=session_id,
         )
     except WebSocketDisconnect:
         pass

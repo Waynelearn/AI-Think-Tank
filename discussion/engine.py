@@ -4,6 +4,7 @@ from fastapi import WebSocket
 from agents.registry import AgentRegistry
 from agents.providers import Usage
 from .models import Discussion, Message
+from database import log_receipt, update_session_state, end_session, estimate_cost
 
 
 class DiscussionEngine:
@@ -16,7 +17,8 @@ class DiscussionEngine:
                           agent_keys: list[str] | None = None,
                           file_context: str = "",
                           prior_discussion: Discussion | None = None,
-                          api_keys: dict | None = None):
+                          api_keys: dict | None = None,
+                          session_id: str = ""):
         """Run an interactive session, processing commands from the frontend."""
 
         if prior_discussion:
@@ -56,16 +58,17 @@ class DiscussionEngine:
                     await self._send(websocket, {"type": "ready", "round": round_num})
                     continue
 
-                await self._run_single_agent(websocket, agent, discussion, topic, round_num, file_context, api_keys)
+                await self._run_single_agent(websocket, agent, discussion, topic,
+                                             round_num, file_context, api_keys, session_id)
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "run_batch":
-                # Run a list of agent keys in sequence
                 keys = cmd.get("agent_keys", [])
                 for key in keys:
                     agent = self.registry.get_agent(key) if key in self.registry.agents else None
                     if agent:
-                        await self._run_single_agent(websocket, agent, discussion, topic, round_num, file_context, api_keys)
+                        await self._run_single_agent(websocket, agent, discussion, topic,
+                                                     round_num, file_context, api_keys, session_id)
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "user_message":
@@ -81,6 +84,8 @@ class DiscussionEngine:
                         "content": content,
                         "round": round_num,
                     })
+                    if session_id:
+                        update_session_state(session_id, discussion.export(), round_num)
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "new_round":
@@ -89,9 +94,13 @@ class DiscussionEngine:
                     "type": "round_start",
                     "round": round_num,
                 })
+                if session_id:
+                    update_session_state(session_id, discussion.export(), round_num)
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "end":
+                if session_id:
+                    end_session(session_id)
                 await self._send(websocket, {
                     "type": "discussion_end",
                     "export": discussion.export(),
@@ -110,7 +119,7 @@ class DiscussionEngine:
 
     async def _run_single_agent(self, websocket: WebSocket, agent, discussion: Discussion,
                                  topic: str, round_num: int, file_context: str,
-                                 api_keys: dict | None = None):
+                                 api_keys: dict | None = None, session_id: str = ""):
         """Stream a single agent's response."""
         messages = self._build_messages(discussion, topic, round_num, file_context)
 
@@ -147,6 +156,22 @@ class DiscussionEngine:
             "agent": agent.name,
             "usage": usage.to_dict(),
         })
+
+        # Persist receipt and session state
+        if session_id:
+            model = (api_keys or {}).get("model", "")
+            cost = estimate_cost(model, usage.input_tokens, usage.output_tokens)
+            log_receipt(
+                session_id=session_id,
+                agent_name=agent.name,
+                round_num=round_num,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+                estimated_cost=cost,
+                provider=(api_keys or {}).get("provider", ""),
+                model=model,
+            )
+            update_session_state(session_id, discussion.export(), round_num)
 
     async def _drain_user_messages(self, websocket: WebSocket, discussion: Discussion, round_num: int):
         """Non-blocking check for user messages while an agent is streaming."""

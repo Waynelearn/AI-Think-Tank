@@ -612,6 +612,61 @@ header h1 {
     text-align: center;
 }
 
+/* Resume banner */
+.resume-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem;
+    background: #1b2333;
+    border: 1px solid #4A90D9;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #ccc;
+    flex-wrap: wrap;
+}
+
+.resume-banner span {
+    text-align: center;
+}
+
+.resume-banner button {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #1a1d27;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 0.78rem;
+    transition: all 0.15s;
+}
+
+.resume-banner .resume-btn {
+    border-color: #4A90D9;
+    color: #4A90D9;
+}
+
+.resume-banner .resume-btn:hover {
+    background: #1a2333;
+}
+
+.resume-banner .newchat-btn:hover {
+    border-color: #E74C3C;
+    color: #E74C3C;
+}
+
+/* New Chat button */
+#btn-new-chat {
+    color: #27AE60;
+    border-color: #27AE60;
+}
+
+#btn-new-chat:hover {
+    background: #1a2e1f;
+    color: #2ECC71;
+}
+
 /* Scrollbar */
 .chat-area::-webkit-scrollbar, .queue-list::-webkit-scrollbar { width: 5px; }
 .chat-area::-webkit-scrollbar-track, .queue-list::-webkit-scrollbar-track { background: transparent; }

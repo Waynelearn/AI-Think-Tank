@@ -18,6 +18,7 @@ const btnNext = document.getElementById("btn-next");
 const btnNewRound = document.getElementById("btn-new-round");
 const btnEnd = document.getElementById("btn-end");
 const btnAddAgent = document.getElementById("btn-add-agent");
+const btnNewChat = document.getElementById("btn-new-chat");
 
 // Settings refs
 const settingsToggle = document.getElementById("settings-toggle");
@@ -41,7 +42,7 @@ let currentMessageEl = null;
 let allAgents = [];           // from /api/agents
 let allProviders = [];        // from /api/providers
 let selectedAgents = new Set();
-let sessionId = "";
+let fileSessionId = "";       // from file upload (separate from persistent session)
 let lastExport = null;
 let priorDiscussion = null;
 let isReady = false;          // backend ready for next command
@@ -51,6 +52,9 @@ let queue = [];               // [{key, name, avatar, color}]
 let currentRound = 1;
 let currentTopic = "";
 let localMessages = [];
+
+// Persistent session
+let persistentSessionId = localStorage.getItem("thinktank_session_id") || "";
 
 // Usage tracking
 let totalInputTokens = 0;
@@ -360,10 +364,184 @@ function stopHeartbeat() {
     }
 }
 
+// ── Persistent Session Helpers ──
+
+function saveSessionMessages() {
+    if (persistentSessionId && localMessages.length) {
+        try {
+            localStorage.setItem(
+                `thinktank_messages_${persistentSessionId}`,
+                JSON.stringify(localMessages)
+            );
+        } catch (e) {
+            // localStorage full — non-critical
+        }
+    }
+}
+
+function loadSessionMessages(sessionId) {
+    try {
+        const raw = localStorage.getItem(`thinktank_messages_${sessionId}`);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function clearPersistedSession() {
+    if (persistentSessionId) {
+        localStorage.removeItem(`thinktank_messages_${persistentSessionId}`);
+    }
+    localStorage.removeItem("thinktank_session_id");
+    persistentSessionId = "";
+}
+
+async function checkExistingSession() {
+    if (!persistentSessionId) return;
+    try {
+        const res = await fetch(`/api/sessions/${persistentSessionId}`);
+        const session = await res.json();
+        if (session.error) {
+            clearPersistedSession();
+            return;
+        }
+        showResumeBanner(session);
+    } catch (e) {
+        clearPersistedSession();
+    }
+}
+
+function showResumeBanner(session) {
+    // Remove existing banner if any
+    const existing = document.getElementById("resume-banner");
+    if (existing) existing.remove();
+
+    const banner = document.createElement("div");
+    banner.id = "resume-banner";
+    banner.className = "resume-banner";
+
+    const topicPreview = session.topic.length > 60
+        ? session.topic.substring(0, 60) + "..."
+        : session.topic;
+
+    banner.innerHTML = `
+        <span class="resume-text">Resume: "${escapeHtml(topicPreview)}"? (Round ${session.current_round})</span>
+        <div class="resume-actions">
+            <button class="resume-btn" id="btn-resume">Resume</button>
+            <button class="newchat-btn" id="btn-resume-new">New Chat</button>
+        </div>
+    `;
+
+    chatArea.parentNode.insertBefore(banner, chatArea);
+
+    document.getElementById("btn-resume").addEventListener("click", () => {
+        banner.remove();
+        resumeSession(session);
+    });
+
+    document.getElementById("btn-resume-new").addEventListener("click", () => {
+        banner.remove();
+        newChat();
+    });
+}
+
+function resumeSession(session) {
+    // Restore topic and agents
+    currentTopic = session.topic;
+    topicInput.value = "";
+
+    if (session.agent_keys && session.agent_keys.length) {
+        selectedAgents = new Set(session.agent_keys);
+        renderAgentChips();
+    }
+
+    // Restore local messages from localStorage
+    const savedMessages = loadSessionMessages(persistentSessionId);
+    if (savedMessages.length) {
+        localMessages = savedMessages;
+        chatArea.innerHTML = "";
+        addDivider(`Resumed: "${session.topic}"`);
+        let curRound = 0;
+        for (const msg of savedMessages) {
+            if (msg.round_num !== curRound) {
+                curRound = msg.round_num;
+                addDivider(`Round ${curRound}`);
+            }
+            if (msg.agent_name === "user") {
+                addUserMessageToChat(msg.content);
+            } else {
+                const ag = allAgents.find((a) => a.name === msg.agent_name);
+                const el = addAgentMessage(msg.agent_name, ag ? ag.color : "#888", ag ? ag.avatar : "?");
+                el.querySelector(".message-content").innerHTML = renderMarkdown(msg.content);
+            }
+        }
+        scrollToBottom();
+    } else {
+        chatArea.innerHTML = "";
+        addDivider(`Resumed: "${session.topic}"`);
+    }
+
+    currentRound = session.current_round || 1;
+
+    // Start WS with existing session_id to resume server-side
+    startSession(true);
+}
+
+function newChat() {
+    // End current WS if active
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        sendCmd({ action: "end" });
+    }
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+
+    // Clear persistent session
+    clearPersistedSession();
+
+    // Reset all state
+    sessionActive = false;
+    autoRunning = false;
+    isReady = false;
+    currentMessageEl = null;
+    lastExport = null;
+    priorDiscussion = null;
+    localMessages = [];
+    currentTopic = "";
+    currentRound = 1;
+    fileSessionId = "";
+    totalInputTokens = 0;
+    totalOutputTokens = 0;
+
+    // Reset UI
+    chatArea.innerHTML = `
+        <div class="welcome-message">
+            <p>Select agents above, enter a topic, and control the discussion with the queue panel.</p>
+            <p class="welcome-sub">Click agents to toggle. Drag queue items to reorder. Interject anytime.</p>
+        </div>`;
+    resetInputMode();
+    updateUsageDisplay();
+    fileStatus.textContent = "";
+    downloadBtn.disabled = true;
+    stopHeartbeat();
+    releaseWakeLock();
+
+    // Remove resume banner if present
+    const banner = document.getElementById("resume-banner");
+    if (banner) banner.remove();
+
+    // Re-select all agents
+    selectedAgents = new Set(allAgents.map((a) => a.key));
+    renderAgentChips();
+    buildQueueFromSelection();
+    updateControls();
+}
+
 // ── WebSocket Session ──
 
-function startSession() {
-    const topic = topicInput.value.trim();
+function startSession(isResume = false) {
+    const topic = isResume ? currentTopic : topicInput.value.trim();
     if (!topic) return;
     if (sessionActive) return;
 
@@ -373,20 +551,27 @@ function startSession() {
         return;
     }
 
-    if (!priorDiscussion) {
+    if (!isResume && !priorDiscussion) {
         chatArea.innerHTML = "";
     }
 
-    // Reset usage for new session
-    totalInputTokens = 0;
-    totalOutputTokens = 0;
-    updateUsageDisplay();
+    if (!isResume) {
+        // Reset usage for new session
+        totalInputTokens = 0;
+        totalOutputTokens = 0;
+        updateUsageDisplay();
 
-    buildQueueFromSelection();
-    currentRound = 1;
-    queueRound.textContent = "Round 1";
+        buildQueueFromSelection();
+        currentRound = 1;
+        queueRound.textContent = "Round 1";
 
-    currentTopic = topic;
+        currentTopic = topic;
+        addDivider(`Topic: "${topic}"`);
+    } else {
+        buildQueueFromSelection();
+        queueRound.textContent = `Round ${currentRound}`;
+    }
+
     submitBtn.disabled = false;
     topicInput.disabled = false;
     topicInput.value = "";
@@ -396,8 +581,6 @@ function startSession() {
     downloadBtn.disabled = false;
     queuePanel.classList.add("active");
 
-    addDivider(`Topic: "${topic}"`);
-
     const protocol = location.protocol === "https:" ? "wss:" : "ws:";
     ws = new WebSocket(`${protocol}//${location.host}/ws/discuss`);
 
@@ -405,9 +588,13 @@ function startSession() {
         const payload = {
             topic,
             agents: Array.from(selectedAgents),
-            session_id: sessionId,
+            file_session_id: fileSessionId,
             api_keys: keys,
         };
+        // For resume, send persistent session_id so backend loads state from DB
+        if (isResume && persistentSessionId) {
+            payload.session_id = persistentSessionId;
+        }
         if (priorDiscussion) {
             payload.prior_discussion = priorDiscussion;
             priorDiscussion = null;
@@ -428,7 +615,17 @@ function startSession() {
         ws = null;
         stopHeartbeat();
         releaseWakeLock();
-        resetInputMode();
+
+        // If we have a persistent session, show reconnect state instead of full reset
+        if (persistentSessionId) {
+            topicInput.disabled = false;
+            submitBtn.disabled = false;
+            topicInput.placeholder = "Session disconnected — click Reconnect or New Chat";
+            submitBtn.textContent = "Reconnect";
+            queuePanel.classList.remove("active");
+        } else {
+            resetInputMode();
+        }
     };
 
     ws.onerror = () => {
@@ -437,7 +634,11 @@ function startSession() {
         ws = null;
         stopHeartbeat();
         releaseWakeLock();
-        resetInputMode();
+        if (persistentSessionId) {
+            submitBtn.textContent = "Reconnect";
+        } else {
+            resetInputMode();
+        }
     };
 }
 
@@ -453,6 +654,12 @@ function handleMessage(data) {
     switch (data.type) {
         case "pong":
             // Heartbeat acknowledged — connection is alive
+            break;
+
+        case "session_created":
+            // Save persistent session_id
+            persistentSessionId = data.session_id;
+            localStorage.setItem("thinktank_session_id", persistentSessionId);
             break;
 
         case "ready":
@@ -493,6 +700,8 @@ function handleMessage(data) {
                 totalOutputTokens += data.usage.output_tokens || 0;
                 updateUsageDisplay();
             }
+            // Persist messages to localStorage
+            saveSessionMessages();
             break;
 
         case "user_message":
@@ -503,6 +712,7 @@ function handleMessage(data) {
                 round_num: data.round || currentRound,
                 timestamp: new Date().toISOString(),
             });
+            saveSessionMessages();
             break;
 
         case "discussion_end":
@@ -517,6 +727,7 @@ function handleMessage(data) {
             queuePanel.classList.remove("active");
             stopHeartbeat();
             releaseWakeLock();
+            clearPersistedSession();
             resetInputMode();
             break;
 
@@ -613,6 +824,12 @@ btnAddAgent.addEventListener("click", () => {
     updateControls();
 });
 
+// ── New Chat ──
+
+btnNewChat.addEventListener("click", () => {
+    newChat();
+});
+
 // ── User Interjection ──
 
 function sendUserMessage() {
@@ -649,7 +866,7 @@ fileUpload.addEventListener("change", async () => {
     try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
-        sessionId = data.session_id;
+        fileSessionId = data.file_session_id;
         fileStatus.textContent = `${data.filenames.length} file(s) attached`;
     } catch (e) {
         fileStatus.textContent = "Upload failed";
@@ -935,7 +1152,18 @@ function escapeHtml(str) {
 submitBtn.addEventListener("click", () => {
     if (sessionActive) {
         sendUserMessage();
-    } else if (!sessionActive) {
+    } else if (submitBtn.textContent === "Reconnect" && persistentSessionId) {
+        // Reconnect to existing session
+        submitBtn.textContent = "Connecting...";
+        submitBtn.disabled = true;
+        checkExistingSession().then(() => {
+            // If no banner was shown (session ended), just reset
+            if (!document.getElementById("resume-banner")) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Start";
+            }
+        });
+    } else {
         startSession();
     }
 });
@@ -946,7 +1174,11 @@ topicInput.addEventListener("keydown", (e) => {
         if (sessionActive) {
             sendUserMessage();
         } else if (!sessionActive && !submitBtn.disabled) {
-            startSession();
+            if (submitBtn.textContent === "Reconnect" && persistentSessionId) {
+                submitBtn.click();
+            } else {
+                startSession();
+            }
         }
     }
 });
@@ -1059,6 +1291,9 @@ queueToggle.addEventListener("click", () => {
 
 // ── Init ──
 loadProviders();
-loadAgents();
-buildQueueFromSelection();
-updateControls();
+loadAgents().then(() => {
+    buildQueueFromSelection();
+    updateControls();
+    // Check for existing session after agents are loaded
+    checkExistingSession();
+});

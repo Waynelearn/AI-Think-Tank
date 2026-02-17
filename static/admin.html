@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Think Tank — Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117; color: #e0e0e0; padding: 1.5rem; min-height: 100vh;
+        }
+        a { color: #6cb4ee; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;
+        }
+        h1 { font-size: 1.4rem; }
+        .back-link { font-size: 0.85rem; }
+
+        /* Date filter */
+        .filter-bar {
+            display: flex; gap: 0.6rem; align-items: center; margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .filter-bar label { font-size: 0.8rem; color: #999; }
+        .filter-bar input[type="date"] {
+            background: #1a1d27; border: 1px solid #333; color: #e0e0e0;
+            padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;
+        }
+        .filter-bar button {
+            background: #4A90D9; color: #fff; border: none; padding: 0.4rem 1rem;
+            border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+        }
+        .filter-bar button:hover { background: #5aa0e9; }
+        .filter-bar .clear-btn { background: #444; }
+        .filter-bar .clear-btn:hover { background: #555; }
+
+        /* Summary cards */
+        .cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .card {
+            background: #1a1d27; border-radius: 10px; padding: 1rem;
+            border: 1px solid #282c3a;
+        }
+        .card-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+        .card-value { font-size: 1.5rem; font-weight: 700; color: #6cb4ee; }
+        .card-value.cost { color: #f0ad4e; }
+
+        /* Tables */
+        .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.6rem; color: #ccc; }
+        table {
+            width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid #333;
+            color: #999; font-weight: 600; text-transform: uppercase; font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 0.5rem 0.6rem; border-bottom: 1px solid #1e2130;
+        }
+        tr:hover td { background: #1a1d27; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .cost-cell { color: #f0ad4e; font-weight: 600; }
+        .status-active { color: #5cb85c; }
+        .status-ended { color: #888; }
+        .topic-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .loading { text-align: center; color: #888; padding: 2rem; }
+        .error-msg { color: #e74c3c; text-align: center; padding: 1rem; }
+
+        @media (max-width: 600px) {
+            body { padding: 0.8rem; }
+            .cards { grid-template-columns: 1fr 1fr; }
+            table { font-size: 0.75rem; }
+            th, td { padding: 0.35rem 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Usage Dashboard</h1>
+        <a href="/" class="back-link">&larr; Back to Think Tank</a>
+    </header>
+
+    <div class="filter-bar">
+        <label>From</label>
+        <input type="date" id="start-date">
+        <label>To</label>
+        <input type="date" id="end-date">
+        <button id="btn-filter">Filter</button>
+        <button id="btn-clear-filter" class="clear-btn">Clear</button>
+    </div>
+
+    <div id="content">
+        <div class="loading">Loading usage data...</div>
+    </div>
+
+    <script>
+        const contentEl = document.getElementById("content");
+        const startDateInput = document.getElementById("start-date");
+        const endDateInput = document.getElementById("end-date");
+
+        function formatTokens(n) {
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+            if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+            return n.toString();
+        }
+
+        function formatCost(c) {
+            if (c < 0.01) return "$" + c.toFixed(4);
+            return "$" + c.toFixed(2);
+        }
+
+        function formatDate(iso) {
+            if (!iso) return "—";
+            const d = new Date(iso);
+            return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        }
+
+        async function loadUsage() {
+            const params = new URLSearchParams();
+            if (startDateInput.value) params.set("start_date", startDateInput.value);
+            if (endDateInput.value) params.set("end_date", endDateInput.value);
+
+            contentEl.innerHTML = '<div class="loading">Loading usage data...</div>';
+
+            try {
+                const res = await fetch(`/api/admin/usage?${params}`);
+                const data = await res.json();
+                renderDashboard(data);
+            } catch (e) {
+                contentEl.innerHTML = '<div class="error-msg">Failed to load usage data.</div>';
+            }
+        }
+
+        function renderDashboard(data) {
+            const totalCost = data.total_estimated_cost || 0;
+            const totalIn = data.total_input_tokens || 0;
+            const totalOut = data.total_output_tokens || 0;
+            const totalSessions = data.total_sessions || 0;
+
+            let html = `
+                <div class="cards">
+                    <div class="card">
+                        <div class="card-label">Sessions</div>
+                        <div class="card-value">${totalSessions}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Input Tokens</div>
+                        <div class="card-value">${formatTokens(totalIn)}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Output Tokens</div>
+                        <div class="card-value">${formatTokens(totalOut)}</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-label">Estimated Cost</div>
+                        <div class="card-value cost">${formatCost(totalCost)}</div>
+                    </div>
+                </div>
+            `;
+
+            // By provider/model
+            if (data.by_provider && data.by_provider.length) {
+                html += `<div class="section-title">By Provider / Model</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>Model</th>
+                            <th class="num">Sessions</th>
+                            <th class="num">Input</th>
+                            <th class="num">Output</th>
+                            <th class="num">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                for (const r of data.by_provider) {
+                    html += `<tr>
+                        <td>${escapeHtml(r.provider || "—")}</td>
+                        <td>${escapeHtml(r.model || "—")}</td>
+                        <td class="num">${r.sessions}</td>
+                        <td class="num">${formatTokens(r.input_tokens || 0)}</td>
+                        <td class="num">${formatTokens(r.output_tokens || 0)}</td>
+                        <td class="num cost-cell">${formatCost(r.cost || 0)}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table>`;
+            }
+
+            // Recent sessions
+            if (data.recent_sessions && data.recent_sessions.length) {
+                html += `<div class="section-title">Recent Sessions</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Provider</th>
+                            <th>Model</th>
+                            <th>Status</th>
+                            <th class="num">Input</th>
+                            <th class="num">Output</th>
+                            <th class="num">Cost</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                for (const s of data.recent_sessions) {
+                    const statusClass = s.status === "active" ? "status-active" : "status-ended";
+                    html += `<tr>
+                        <td class="topic-cell" title="${escapeHtml(s.topic)}">${escapeHtml(s.topic)}</td>
+                        <td>${escapeHtml(s.provider || "—")}</td>
+                        <td>${escapeHtml(s.model || "—")}</td>
+                        <td class="${statusClass}">${s.status}</td>
+                        <td class="num">${formatTokens(s.input_tokens || 0)}</td>
+                        <td class="num">${formatTokens(s.output_tokens || 0)}</td>
+                        <td class="num cost-cell">${formatCost(s.total_cost || 0)}</td>
+                        <td>${formatDate(s.created_at)}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table>`;
+            }
+
+            if (!data.by_provider?.length && !data.recent_sessions?.length && totalSessions === 0) {
+                html += '<div class="loading">No usage data yet. Start a discussion to generate receipts.</div>';
+            }
+
+            contentEl.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement("div");
+            d.textContent = str || "";
+            return d.innerHTML;
+        }
+
+        document.getElementById("btn-filter").addEventListener("click", loadUsage);
+        document.getElementById("btn-clear-filter").addEventListener("click", () => {
+            startDateInput.value = "";
+            endDateInput.value = "";
+            loadUsage();
+        });
+
+        loadUsage();
+    </script>
+</body>
+</html>
