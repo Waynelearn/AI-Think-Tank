@@ -98,9 +98,9 @@ let agentStartTime = null;
 // Save debounce timer
 let saveDebounceTimer = null;
 
-// Font size scale
-const FONT_SIZES = [0.85, 0.9, 0.95, 1.0, 1.05, 1.15, 1.25];
-const FONT_SIZE_DEFAULT_IDX = 3;
+// Font size scale (px) — only affects chat content, not UI chrome
+const FONT_SIZES = [12, 13, 14, 15, 16, 18, 20];
+const FONT_SIZE_DEFAULT_IDX = 2; // 14px
 
 // ── Theme & Font Size ──
 
@@ -134,7 +134,7 @@ function initFontSize() {
 
 function applyFontSize(idx) {
     const clamped = Math.max(0, Math.min(FONT_SIZES.length - 1, idx));
-    document.documentElement.style.setProperty("--font-size-base", FONT_SIZES[clamped] + "rem");
+    document.documentElement.style.setProperty("--font-size-chat", FONT_SIZES[clamped] + "px");
     localStorage.setItem("thinktank_font_size_idx", clamped);
 }
 

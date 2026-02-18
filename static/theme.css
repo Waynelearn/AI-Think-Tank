@@ -47,12 +47,8 @@
     /* Scrollbar */
     --scrollbar-thumb:#333;
 
-    /* Font size (controlled by A+/A-) */
-    --font-size-base: 1rem;
-}
-
-html {
-    font-size: var(--font-size-base, 1rem);
+    /* Font size (controlled by A+/A- — only scales chat content) */
+    --font-size-chat: 14px;
 }
 
 /* ── Light Theme ── */
