@@ -933,14 +933,8 @@ document.getElementById("btn-clear").addEventListener("click", () => {
 
 const btnShuffle = document.getElementById("btn-shuffle");
 btnShuffle.addEventListener("click", () => {
-    const before = queue.map(q => q.name).join(", ");
-    if (queue.length <= 1) {
-        alert("Queue has " + queue.length + " items - nothing to shuffle");
-        return;
-    }
+    if (queue.length <= 1) return;
     shuffleQueue();
-    const after = queue.map(q => q.name).join(", ");
-    alert("Shuffled!\nBefore: " + before + "\nAfter: " + after);
 });
 
 btnAddAgent.addEventListener("click", () => {
