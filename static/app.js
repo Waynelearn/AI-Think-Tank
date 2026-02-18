@@ -931,7 +931,9 @@ document.getElementById("btn-clear").addEventListener("click", () => {
     updateControls();
 });
 
-document.getElementById("btn-shuffle").addEventListener("click", () => {
+const btnShuffle = document.getElementById("btn-shuffle");
+btnShuffle.addEventListener("click", () => {
+    if (queue.length <= 1) return;
     shuffleQueue();
 });
 

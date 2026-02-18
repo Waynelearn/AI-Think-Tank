@@ -464,7 +464,7 @@ header h1 {
 
 .queue-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 0.3rem;
 }
 
@@ -672,6 +672,17 @@ header h1 {
 #btn-new-chat:hover {
     background: #1a2e1f;
     color: #2ECC71;
+}
+
+/* Shuffle button */
+#btn-shuffle {
+    color: #F39C12;
+    border-color: #F39C12;
+}
+
+#btn-shuffle:hover {
+    background: #2d2517;
+    color: #F5B041;
 }
 
 /* History toggle button */
