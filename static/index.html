@@ -3,22 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 19 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
+    <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
+    <noscript><p>AI Think Tank requires JavaScript to run. Please enable JavaScript in your browser.</p></noscript>
     <div class="container">
         <header>
             <h1>AI Think Tank</h1>
             <p class="subtitle">A round-table of AI minds discussing your topics
-                <a href="/help" class="help-link" title="How to use AI Think Tank">?</a>
-                <a href="/admin" class="help-link" title="Usage dashboard">&#128202;</a>
+                <a href="/help" class="help-link" title="How to use AI Think Tank" aria-label="Help guide">?</a>
+                <a href="/admin" class="help-link" title="Usage dashboard" aria-label="Usage dashboard">&#128202;</a>
             </p>
+            <div class="header-controls">
+                <button id="btn-theme" class="icon-btn theme-toggle" aria-label="Switch to light mode" title="Toggle theme"><span id="theme-icon">&#9790;</span></button>
+                <div class="font-controls" aria-label="Font size controls">
+                    <button id="btn-font-dec" class="icon-btn" aria-label="Decrease font size" title="Smaller text">A-</button>
+                    <button id="btn-font-inc" class="icon-btn" aria-label="Increase font size" title="Larger text">A+</button>
+                </div>
+            </div>
         </header>
 
         <!-- Settings Panel (collapsible) -->
-        <div class="settings-panel">
-            <button class="settings-toggle" id="settings-toggle">&#9881; Settings &#9660;</button>
+        <div class="settings-panel" role="region" aria-label="Settings">
+            <button class="settings-toggle" id="settings-toggle" aria-expanded="false" aria-controls="settings-body">
+                <span aria-hidden="true">&#9881;</span> Settings <span aria-hidden="true" id="settings-arrow">&#9660;</span>
+            </button>
             <div class="settings-body" id="settings-body">
                 <div class="settings-row">
                     <label for="provider-select">Provider</label>
@@ -40,21 +52,21 @@
                     <button id="settings-save" class="settings-btn">Save</button>
                     <button id="settings-clear" class="settings-btn settings-btn-danger">Clear</button>
                 </div>
-                <div class="settings-notice" id="settings-notice"></div>
+                <div class="settings-notice" id="settings-notice" role="status"></div>
             </div>
         </div>
 
         <!-- Usage Bar -->
-        <div class="usage-bar" id="usage-bar" style="display:none;">
+        <div class="usage-bar" id="usage-bar" style="display:none;" role="status" aria-label="Token usage">
             <span id="usage-text">Tokens: 0 in / 0 out</span>
             <span id="usage-cost">~$0.00</span>
         </div>
 
-        <div class="agents-bar" id="agents-bar"></div>
+        <div class="agents-bar" id="agents-bar" role="toolbar" aria-label="Agent selection"></div>
 
-        <div class="main-area">
+        <div class="main-area" role="region" aria-label="Discussion area">
             <!-- Queue toggle (mobile only) -->
-            <button id="queue-toggle" class="queue-toggle">Speaker Queue &#9660;</button>
+            <button id="queue-toggle" class="queue-toggle" aria-expanded="false" aria-controls="queue-panel">Speaker Queue <span aria-hidden="true">&#9660;</span></button>
 
             <!-- Queue Panel (right side) -->
             <div class="queue-panel" id="queue-panel">
@@ -64,21 +76,21 @@
                 </div>
                 <div class="queue-list" id="queue-list"></div>
                 <div class="queue-actions">
-                    <button id="btn-play" class="q-btn q-play" title="Auto-run all in queue">&#9654; Play All</button>
-                    <button id="btn-next" class="q-btn q-next" title="Run next agent">&#9199; Next</button>
-                    <button id="btn-new-round" class="q-btn" title="Start a new round">&#10227; New Round</button>
-                    <button id="btn-end" class="q-btn q-end" title="Stop auto-play">&#9724; Stop</button>
-                    <button id="btn-clear" class="q-btn" title="Clear all agents from queue">&#128465; Clear</button>
-                    <button id="btn-shuffle" class="q-btn" title="Randomize speaker order">&#128256; Shuffle</button>
+                    <button id="btn-play" class="q-btn q-play" title="Auto-run all in queue" aria-label="Play all agents in queue">&#9654; Play All</button>
+                    <button id="btn-next" class="q-btn q-next" title="Run next agent" aria-label="Run next agent">&#9199; Next</button>
+                    <button id="btn-new-round" class="q-btn" title="Start a new round" aria-label="Start new round">&#10227; New Round</button>
+                    <button id="btn-end" class="q-btn q-end" title="Stop auto-play" aria-label="Stop auto-play">&#9724; Stop</button>
+                    <button id="btn-clear" class="q-btn" title="Clear all agents from queue" aria-label="Clear queue">&#128465; Clear</button>
+                    <button id="btn-shuffle" class="q-btn" title="Randomize speaker order" aria-label="Shuffle speaker order">&#128256; Shuffle</button>
                 </div>
                 <div class="queue-add">
-                    <select id="add-agent-select"><option value="">+ Add agent...</option></select>
+                    <select id="add-agent-select" aria-label="Add agent to queue"><option value="">+ Add agent...</option></select>
                     <button id="btn-add-agent" class="q-btn-sm">Add</button>
                 </div>
             </div>
 
             <!-- Chat Area -->
-            <div class="chat-area" id="chat-area">
+            <div class="chat-area" id="chat-area" role="log" aria-live="polite" aria-label="Discussion messages">
                 <div class="welcome-message">
                     <p>Select agents above, enter a topic, and control the discussion with the queue panel.</p>
                     <p class="welcome-sub">Click agents to toggle. Drag queue items to reorder. Interject anytime.</p>
@@ -86,29 +98,34 @@
             </div>
         </div>
 
-        <div class="input-area">
+        <!-- Error region for screen readers -->
+        <div id="error-region" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+        <div class="input-area" role="region" aria-label="Discussion input">
             <div class="controls">
-                <button id="btn-new-chat" class="icon-btn" title="Start a fresh discussion">&#10010; New Chat</button>
-                <button id="btn-history" class="icon-btn" title="Recent chats">&#128218; History</button>
+                <button id="btn-new-chat" class="icon-btn" title="Start a fresh discussion" aria-label="Start a fresh discussion">&#10010; New Chat</button>
+                <button id="btn-history" class="icon-btn" title="Recent chats" aria-label="Open recent chats">&#128218; History</button>
                 <label for="file-upload" class="file-upload-btn" title="Attach files">&#128206; Attach</label>
-                <input type="file" id="file-upload" multiple hidden
+                <input type="file" id="file-upload" multiple hidden aria-label="Upload files"
                     accept=".csv,.xlsx,.xls,.pdf,.html,.htm,.txt,.md,.json,.log,.py,.js,.ts,.docx,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi,.mkv">
-                <span id="file-status" class="file-status"></span>
-                <select id="save-format" class="icon-btn" title="Save format">
+                <span id="file-status" class="file-status" role="status"></span>
+                <select id="save-format" class="icon-btn" title="Save format" aria-label="Save format">
                     <option value="html">Save as HTML</option>
                     <option value="json">Save as JSON</option>
                 </select>
-                <button id="download-btn" class="icon-btn" title="Download conversation" disabled>&#128190; Save</button>
-                <button id="load-btn" class="icon-btn" title="Load previous conversation">&#128194; Load</button>
-                <input type="file" id="load-input" accept=".json,.html" hidden>
+                <button id="download-btn" class="icon-btn" title="Download conversation" aria-label="Download conversation" disabled>&#128190; Save</button>
+                <button id="load-btn" class="icon-btn" title="Load previous conversation" aria-label="Load conversation">&#128194; Load</button>
+                <input type="file" id="load-input" accept=".json,.html" hidden aria-label="Load conversation file">
             </div>
             <div class="input-row">
+                <label for="topic-input" class="sr-only">Discussion topic or message</label>
                 <textarea id="topic-input" rows="1" placeholder="Enter a topic for discussion..." autocomplete="off"></textarea>
                 <button id="submit-btn">Start</button>
             </div>
         </div>
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/utils.js?v=3"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>

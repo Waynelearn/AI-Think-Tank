@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Think Tank — Help</title>
+    <link rel="stylesheet" href="/static/theme.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f1117;
-            color: #e0e0e0;
+            background: var(--bg-page);
+            color: var(--text-primary);
             line-height: 1.7;
             padding: 1.5rem;
         }
@@ -17,67 +18,83 @@
             max-width: 740px;
             margin: 0 auto;
         }
-        .back-link {
-            display: inline-block;
-            color: #6cb4ee;
-            text-decoration: none;
-            font-size: 0.85rem;
+        .help-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 1rem;
         }
+        .back-link {
+            display: inline-block;
+            color: var(--accent-sky);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
         .back-link:hover { text-decoration: underline; }
+        .theme-toggle-help {
+            background: var(--bg-raised);
+            border: 1px solid var(--border-muted);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.15rem 0.4rem;
+            min-width: 2rem;
+        }
+        .theme-toggle-help:hover { border-color: var(--accent-blue); }
         h1 {
             font-size: 1.5rem;
-            background: linear-gradient(135deg, #4A90D9, #9B59B6, #E74C3C);
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-red));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: 0.3rem;
         }
         .help-subtitle {
-            color: #888;
+            color: var(--text-dim);
             font-size: 0.85rem;
             margin-bottom: 1.5rem;
         }
         h2 {
             font-size: 1.1rem;
-            color: #4A90D9;
+            color: var(--accent-blue);
             margin-top: 2rem;
             margin-bottom: 0.5rem;
             padding-bottom: 0.3rem;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-default);
         }
         h3 {
             font-size: 0.95rem;
-            color: #9B59B6;
+            color: var(--accent-purple);
             margin-top: 1.2rem;
             margin-bottom: 0.3rem;
         }
-        p { margin-bottom: 0.7rem; font-size: 0.88rem; color: #ccc; }
-        ul, ol { margin: 0.4rem 0 0.8rem 1.4rem; font-size: 0.88rem; color: #ccc; }
+        p { margin-bottom: 0.7rem; font-size: 0.88rem; color: var(--text-secondary); }
+        ul, ol { margin: 0.4rem 0 0.8rem 1.4rem; font-size: 0.88rem; color: var(--text-secondary); }
         li { margin-bottom: 0.3rem; }
         code {
-            background: #1a1d27;
+            background: var(--bg-raised);
             padding: 0.15rem 0.4rem;
             border-radius: 4px;
             font-size: 0.82rem;
-            color: #e0e0e0;
+            color: var(--text-primary);
         }
         .tip {
-            background: #1b2333;
-            border-left: 3px solid #4A90D9;
+            background: var(--bg-user-msg);
+            border-left: 3px solid var(--accent-blue);
             padding: 0.6rem 0.8rem;
             border-radius: 0 8px 8px 0;
             margin: 0.6rem 0;
             font-size: 0.85rem;
         }
         .warn {
-            background: #2d2517;
-            border-left: 3px solid #E67E22;
+            background: var(--bg-warn);
+            border-left: 3px solid var(--accent-orange);
             padding: 0.6rem 0.8rem;
             border-radius: 0 8px 8px 0;
             margin: 0.6rem 0;
             font-size: 0.85rem;
-            color: #E67E22;
+            color: var(--accent-orange);
         }
         .agent-list {
             display: grid;
@@ -88,32 +105,66 @@
             padding: 0;
         }
         .agent-list li {
-            background: #1a1d27;
+            background: var(--bg-raised);
             padding: 0.5rem 0.7rem;
             border-radius: 8px;
             border-left: 3px solid var(--color);
             font-size: 0.82rem;
         }
         .agent-list .agent-name { font-weight: 600; }
-        .agent-list .agent-desc { color: #999; font-size: 0.78rem; }
+        .agent-list .agent-desc { color: var(--text-dim); font-size: 0.78rem; }
+        .agent-section-label {
+            font-size: 0.75rem;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 1rem;
+            margin-bottom: 0.4rem;
+        }
         kbd {
-            background: #222638;
-            border: 1px solid #444;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-muted);
             border-radius: 4px;
             padding: 0.1rem 0.35rem;
             font-size: 0.78rem;
             font-family: inherit;
         }
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 0.5rem;
+            margin: 0.6rem 0;
+        }
+        .example-card {
+            background: var(--bg-raised);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+        }
+        .example-card h4 {
+            font-size: 0.82rem;
+            color: var(--accent-purple);
+            margin-bottom: 0.3rem;
+        }
+        .example-card p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 0.2rem;
+        }
         @media (max-width: 600px) {
             body { padding: 1rem; }
             h1 { font-size: 1.3rem; }
             .agent-list { grid-template-columns: 1fr; }
+            .example-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="help-container">
-        <a href="/" class="back-link">&larr; Back to Think Tank</a>
+        <div class="help-header">
+            <a href="/" class="back-link">&larr; Back to Think Tank</a>
+            <button class="theme-toggle-help" id="btn-theme-help" aria-label="Toggle theme" title="Toggle theme"><span id="theme-icon-help">&#9790;</span></button>
+        </div>
         <h1>AI Think Tank — Help Guide</h1>
         <p class="help-subtitle">Everything you need to know to run a multi-agent discussion.</p>
 
@@ -138,7 +189,7 @@
             <li><strong>API Key</strong> (required) — The key for your selected provider. Get one from the provider's console. The placeholder updates to show the expected key format.</li>
             <li><strong>Brave Search API Key</strong> (optional) — Enables agents to search the web for live data and images.
                 Get a free key (2,000 queries/month) from
-                <a href="https://brave.com/search/api/" target="_blank" style="color:#6cb4ee">brave.com/search/api</a>.</li>
+                <a href="https://brave.com/search/api/" target="_blank" rel="noopener noreferrer" style="color:var(--accent-sky)">brave.com/search/api</a>.</li>
         </ol>
         <p>Click <strong>"Save"</strong> to store settings in your browser. API keys are saved per provider, so you can switch between providers without re-entering keys. They are never stored on the server — they go directly to the respective APIs.</p>
 
@@ -171,13 +222,14 @@
             <li><strong>New Round</strong> — Advances to a new discussion round and refills the queue with all selected agents.</li>
             <li><strong>Stop</strong> — Pauses auto-play (does not end the session).</li>
             <li><strong>Clear</strong> — Empties the queue entirely.</li>
+            <li><strong>Shuffle</strong> — Randomizes the speaker order (The Mediator stays last).</li>
         </ul>
 
         <h3>Reordering &amp; Editing the Queue</h3>
         <ul>
-            <li><strong>Drag &amp; drop</strong> queue items to reorder (grab the ☰ handle).</li>
-            <li>Use the <strong>arrow buttons</strong> (↑ ↓) to move an agent up or down.</li>
-            <li>Click <strong>×</strong> to remove an agent from the queue.</li>
+            <li><strong>Drag &amp; drop</strong> queue items to reorder (grab the &#9776; handle).</li>
+            <li>Use the <strong>arrow buttons</strong> (&uarr; &darr;) to move an agent up or down.</li>
+            <li>Click <strong>&times;</strong> to remove an agent from the queue.</li>
             <li>Use the <strong>"Add agent"</strong> dropdown to insert any agent into the queue at any time — even agents that aren't in the current selection.</li>
         </ul>
 
@@ -193,7 +245,7 @@
         <!-- ───────────── Interacting ───────────── -->
         <h2>3. Interacting During a Discussion</h2>
         <p>
-            Once a discussion is running, the input field changes to an interjection box. You can type a message and click <strong>Send</strong> (or press <kbd>Enter</kbd>) at any time — even while an agent is speaking.
+            Once a discussion is running, the input field changes to an interjection box. You can type a message and click <strong>Send</strong> (or press <kbd>Enter</kbd> / <kbd>Ctrl+Enter</kbd>) at any time — even while an agent is speaking.
         </p>
         <p>Your interjections are added to the transcript and every agent that speaks after will see and address your message. Use this to:</p>
         <ul>
@@ -207,25 +259,103 @@
         <h2>4. Meet the Agents</h2>
         <p>Each agent has a distinct personality, expertise, and discussion style. Click an agent chip to toggle their participation.</p>
 
+        <div class="agent-section-label">Core Analysts</div>
         <ul class="agent-list">
-            <li style="--color:#4A90D9"><span class="agent-name">🔬 Dr. Nova</span><br><span class="agent-desc">Science & Technology — Data-driven, evidence-based, cites studies.</span></li>
-            <li style="--color:#9B59B6"><span class="agent-name">🏛️ Philosopher Phil</span><br><span class="agent-desc">Philosophy & Ethics — Socratic questions, moral dimensions.</span></li>
-            <li style="--color:#27AE60"><span class="agent-name">📊 Biz</span><br><span class="agent-desc">Business Strategy — ROI-focused, pragmatic, bottom-line thinker.</span></li>
-            <li style="--color:#E74C3C"><span class="agent-name">🎨 Creatia</span><br><span class="agent-desc">Creativity & Arts — Metaphorical, unconventional perspectives.</span></li>
-            <li style="--color:#E67E22"><span class="agent-name">😈 Devil's Advocate</span><br><span class="agent-desc">Critical Analysis — Challenges every assumption head-on.</span></li>
-            <li style="--color:#1ABC9C"><span class="agent-name">⚖️ The Mediator</span><br><span class="agent-desc">Synthesis & Consensus — Finds common ground, summarizes.</span></li>
-            <li style="--color:#C0392B"><span class="agent-name">🔥 Rex Risk</span><br><span class="agent-desc">High-Risk Strategy — Bold bets, asymmetric payoffs.</span></li>
-            <li style="--color:#F39C12"><span class="agent-name">🚀 YOLO Max</span><br><span class="agent-desc">Speculative Trading — Momentum-driven, high-conviction plays.</span></li>
-            <li style="--color:#2E86C1"><span class="agent-name">📈 Samantha Street</span><br><span class="agent-desc">Equity Research — Valuation-focused fundamental analysis.</span></li>
-            <li style="--color:#34495E"><span class="agent-name">🌍 Dr. Macro</span><br><span class="agent-desc">Macroeconomics — Systems-oriented, big-picture thinker.</span></li>
-            <li style="--color:#16A085"><span class="agent-name">⚙️ Systems Sage</span><br><span class="agent-desc">Systems Design — Architecture and engineering patterns.</span></li>
-            <li style="--color:#8E44AD"><span class="agent-name">🧠 Dr. Bias</span><br><span class="agent-desc">Behavioral Psychology — Identifies cognitive biases.</span></li>
-            <li style="--color:#1F618D"><span class="agent-name">🏦 Capital Steward</span><br><span class="agent-desc">Capital Allocation — Long-term, disciplined investing.</span></li>
-            <li style="--color:#7D3C98"><span class="agent-name">🛰️ Atlas</span><br><span class="agent-desc">Geopolitics — Power dynamics and global strategy.</span></li>
+            <li style="--color:#4A90D9"><span class="agent-name">&#128300; Dr. Nova</span><br><span class="agent-desc">Science & Technology — Data-driven, evidence-based, cites studies.</span></li>
+            <li style="--color:#9B59B6"><span class="agent-name">&#127963;&#65039; Philosopher Phil</span><br><span class="agent-desc">Philosophy & Ethics — Socratic questions, moral dimensions.</span></li>
+            <li style="--color:#27AE60"><span class="agent-name">&#128202; Biz</span><br><span class="agent-desc">Business Strategy — ROI-focused, pragmatic, bottom-line thinker.</span></li>
+            <li style="--color:#E74C3C"><span class="agent-name">&#127912; Creatia</span><br><span class="agent-desc">Creativity & Arts — Metaphorical, unconventional perspectives.</span></li>
+            <li style="--color:#E67E22"><span class="agent-name">&#128520; Devil's Advocate</span><br><span class="agent-desc">Critical Analysis — Challenges every assumption head-on.</span></li>
+            <li style="--color:#1ABC9C"><span class="agent-name">&#9878;&#65039; The Mediator</span><br><span class="agent-desc">Synthesis & Consensus — Finds common ground, summarizes. Speaks last.</span></li>
+        </ul>
+
+        <div class="agent-section-label">Finance & Strategy</div>
+        <ul class="agent-list">
+            <li style="--color:#C0392B"><span class="agent-name">&#128293; Rex Risk</span><br><span class="agent-desc">High-Risk Strategy — Bold bets, asymmetric payoffs.</span></li>
+            <li style="--color:#F39C12"><span class="agent-name">&#128640; YOLO Max</span><br><span class="agent-desc">Speculative Trading — Momentum-driven, high-conviction plays.</span></li>
+            <li style="--color:#2E86C1"><span class="agent-name">&#128200; Samantha Street</span><br><span class="agent-desc">Equity Research — Valuation-focused fundamental analysis.</span></li>
+            <li style="--color:#34495E"><span class="agent-name">&#127758; Dr. Macro</span><br><span class="agent-desc">Macroeconomics — Systems-oriented, big-picture thinker.</span></li>
+            <li style="--color:#16A085"><span class="agent-name">&#9881;&#65039; Systems Sage</span><br><span class="agent-desc">Systems Design — Architecture and engineering patterns.</span></li>
+            <li style="--color:#8E44AD"><span class="agent-name">&#129504; Dr. Bias</span><br><span class="agent-desc">Behavioral Psychology — Identifies cognitive biases.</span></li>
+            <li style="--color:#1F618D"><span class="agent-name">&#127974; Capital Steward</span><br><span class="agent-desc">Capital Allocation — Long-term, disciplined investing.</span></li>
+            <li style="--color:#7D3C98"><span class="agent-name">&#128752;&#65039; Atlas</span><br><span class="agent-desc">Geopolitics — Power dynamics and global strategy.</span></li>
+        </ul>
+
+        <div class="agent-section-label">Shadow Panel (Negative Personas)</div>
+        <p>These personas represent morally challenging perspectives. They are designed to stress-test arguments, reveal blind spots, and surface uncomfortable truths about human rationalization.</p>
+        <ul class="agent-list">
+            <li style="--color:#95A5A6"><span class="agent-name">&#128715;&#65039; The Complicit</span><br><span class="agent-desc">Status Quo Defense — Passive, norm-following, uses legal compliance as moral licensing.</span></li>
+            <li style="--color:#566573"><span class="agent-name">&#129518; The Operator</span><br><span class="agent-desc">Transactional Pragmatism — Cold, efficiency-driven, treats exchanges as consumer services.</span></li>
+            <li style="--color:#6C3483"><span class="agent-name">&#127761; The Cynic</span><br><span class="agent-desc">Existential Critique — Disillusioned intellectual who sees the ethical catastrophe but views action as futile.</span></li>
+            <li style="--color:#1C2833"><span class="agent-name">&#9823;&#65039; The Sovereign</span><br><span class="agent-desc">Amoral Optimization — Game-theoretic rationality, maximizes utility with zero ethical weight.</span></li>
+            <li style="--color:#7B241C"><span class="agent-name">&#127922; The Defector</span><br><span class="agent-desc">Conditional Nihilism — Strategic pessimism with a personal exit tripwire.</span></li>
+        </ul>
+
+        <!-- ───────────── Example Topics ───────────── -->
+        <h2>5. Example Topics</h2>
+        <p>Not sure what to discuss? Here are some ideas organized by category:</p>
+
+        <div class="example-grid">
+            <div class="example-card">
+                <h4>Finance & Markets</h4>
+                <p>"Analyze NVIDIA's current valuation — is it a buy or overpriced?"</p>
+                <p>"Build a $100k portfolio for a 30-year-old with high risk tolerance."</p>
+                <p>"Will the Fed cut rates this year? What should bond investors do?"</p>
+            </div>
+            <div class="example-card">
+                <h4>Strategy & Business</h4>
+                <p>"Should a SaaS startup prioritize growth or profitability?"</p>
+                <p>"Compare the business models of Netflix, Disney+, and YouTube Premium."</p>
+                <p>"Design a go-to-market strategy for an AI coding assistant."</p>
+            </div>
+            <div class="example-card">
+                <h4>Ethics & Philosophy</h4>
+                <p>"Is it ethical to use AI-generated art commercially?"</p>
+                <p>"Should social media platforms be liable for user content?"</p>
+                <p>"Debate the trolley problem with real-world autonomous vehicle scenarios."</p>
+            </div>
+            <div class="example-card">
+                <h4>Science & Technology</h4>
+                <p>"What are the most promising breakthroughs in nuclear fusion?"</p>
+                <p>"Evaluate the risks and benefits of CRISPR gene editing in humans."</p>
+                <p>"Should we colonize Mars? What's the strongest case against it?"</p>
+            </div>
+            <div class="example-card">
+                <h4>Geopolitics & Economics</h4>
+                <p>"How will AI reshape the global labor market in the next decade?"</p>
+                <p>"Analyze the economic impact of de-dollarization."</p>
+                <p>"What geopolitical risks should investors worry about most?"</p>
+            </div>
+        </div>
+
+        <!-- ───────────── Getting the Most ───────────── -->
+        <h2>6. Getting the Most from Discussions</h2>
+
+        <h3>Agent Selection Tips</h3>
+        <ul>
+            <li><strong>Finance topics:</strong> Use Rex Risk, YOLO Max, Samantha Street, Capital Steward, Dr. Macro, and Dr. Bias for a full spectrum from speculation to discipline.</li>
+            <li><strong>Ethics debates:</strong> Use Philosopher Phil, Devil's Advocate, The Complicit, The Cynic, and The Mediator to explore all angles.</li>
+            <li><strong>Tech/science:</strong> Dr. Nova, Systems Sage, and Biz give you evidence + architecture + business viability.</li>
+            <li><strong>General brainstorming:</strong> Start with 4-5 diverse agents. Add more if you want deeper coverage.</li>
+        </ul>
+
+        <h3>Multi-Round Strategy</h3>
+        <ul>
+            <li><strong>Round 1:</strong> Let agents give their initial takes. Don't interject yet.</li>
+            <li><strong>Round 2:</strong> Interject to focus on the most interesting disagreements. Agents will build on Round 1.</li>
+            <li><strong>Round 3+:</strong> Push for concrete conclusions, recommendations, or action items.</li>
+        </ul>
+
+        <h3>Interjection Techniques</h3>
+        <ul>
+            <li><strong>Be specific:</strong> "Compare the GDP data from Dr. Macro with Biz's profitability analysis" beats "discuss more."</li>
+            <li><strong>Challenge agents:</strong> "Dr. Nova, where's the evidence for that claim?" triggers deeper responses.</li>
+            <li><strong>Request formats:</strong> "Give me a pros/cons table" or "Rank these options 1-5" for structured output.</li>
+            <li><strong>Add data:</strong> "The latest CPI came in at 3.2% — how does this change your analysis?" keeps things current.</li>
         </ul>
 
         <!-- ───────────── File Uploads ───────────── -->
-        <h2>5. Attaching Files</h2>
+        <h2>7. Attaching Files</h2>
         <p>Click <strong>"Attach"</strong> in the bottom toolbar to upload reference materials. Agents will read and cite them during the discussion.</p>
         <p>Supported file types:</p>
         <ul>
@@ -240,7 +370,7 @@
         </div>
 
         <!-- ───────────── Saving & Loading ───────────── -->
-        <h2>6. Saving &amp; Loading Discussions</h2>
+        <h2>8. Saving &amp; Loading Discussions</h2>
 
         <h3>Saving</h3>
         <p>Use the save dropdown and button in the bottom toolbar:</p>
@@ -257,7 +387,7 @@
         </ol>
 
         <!-- ───────────── Web Search ───────────── -->
-        <h2>7. Web Search &amp; Images</h2>
+        <h2>9. Web Search &amp; Images</h2>
         <p>
             When a Brave Search API key is configured, agents can autonomously search the web during their responses.
             They use this to find current data, cite sources with links, and embed images.
@@ -271,7 +401,7 @@
         <p>Image results are embedded directly in the chat. If an image fails to load, a fallback thumbnail or link is shown automatically.</p>
 
         <!-- ───────────── Token Usage ───────────── -->
-        <h2>8. Token Usage &amp; Cost Tracking</h2>
+        <h2>10. Token Usage &amp; Cost Tracking</h2>
         <p>
             A usage bar appears below the settings panel once a discussion starts. It shows cumulative token usage and estimated cost for the current session.
         </p>
@@ -285,35 +415,60 @@
         </div>
 
         <!-- ───────────── Tips ───────────── -->
-        <h2>9. Tips &amp; Best Practices</h2>
+        <h2>11. Tips &amp; Best Practices</h2>
         <ul>
-            <li><strong>Start small:</strong> Begin with 3–5 agents for focused discussions. Add more for broader debates.</li>
+            <li><strong>Start small:</strong> Begin with 3-5 agents for focused discussions. Add more for broader debates.</li>
             <li><strong>Use The Mediator last:</strong> They synthesize everyone's points — best placed at the end of a round.</li>
             <li><strong>Multi-round discussions:</strong> Click "New Round" after each pass. Agents will build on prior rounds.</li>
             <li><strong>Be specific in interjections:</strong> "Compare the GDP data from Dr. Macro with Biz's profitability analysis" gives better results than "discuss more."</li>
             <li><strong>Upload context:</strong> Agents give much better analysis when they have data to work with (PDFs, spreadsheets, reports).</li>
             <li><strong>Use Devil's Advocate:</strong> They'll stress-test ideas the other agents are too agreeable on.</li>
+            <li><strong>Try the Shadow Panel:</strong> Add The Cynic or The Sovereign to ethics discussions for uncomfortably honest perspectives.</li>
         </ul>
 
         <!-- ───────────── Keyboard Shortcuts ───────────── -->
-        <h2>10. Keyboard Shortcuts</h2>
+        <h2>12. Keyboard Shortcuts</h2>
         <ul>
             <li><kbd>Enter</kbd> — Start discussion / Send interjection</li>
+            <li><kbd>Ctrl+Enter</kbd> — Submit from anywhere on the page</li>
+            <li><kbd>Escape</kbd> — Pause auto-play / Close settings panel</li>
+            <li><kbd>Tab</kbd> — Navigate between agent chips and controls</li>
+            <li><kbd>Enter</kbd> or <kbd>Space</kbd> — Toggle focused agent chip</li>
         </ul>
 
         <!-- ───────────── Troubleshooting ───────────── -->
-        <h2>11. Troubleshooting</h2>
+        <h2>13. Troubleshooting</h2>
         <ul>
             <li><strong>"Please add your API key"</strong> — Open the Settings panel, select your provider, and enter a valid API key.</li>
             <li><strong>"Connection error"</strong> — The backend server may not be running. Ensure <code>python main.py</code> is active on port 8000.</li>
             <li><strong>Search not working</strong> — Check that your Brave Search API key is valid and has remaining quota.</li>
             <li><strong>Agent gives generic response</strong> — Try interjecting with specific instructions or upload reference documents for richer context.</li>
             <li><strong>Images not loading</strong> — Some image sources block embedding. The app automatically tries fallback thumbnails. If all fail, a clickable link is shown instead.</li>
+            <li><strong>Session limit reached</strong> — Delete old chats from the History panel to make room for new ones.</li>
         </ul>
 
-        <p style="margin-top: 2rem; color: #555; font-size: 0.8rem; text-align: center;">
+        <p style="margin-top: 2rem; color: var(--text-very-faint); font-size: 0.8rem; text-align: center;">
             AI Think Tank — Multi-agent discussion platform. Supports Anthropic, OpenAI, DeepSeek, Google Gemini, and Groq.
         </p>
     </div>
+    <script>
+        // Theme toggle for help page
+        (function() {
+            const saved = localStorage.getItem("thinktank_theme");
+            const prefer = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+            const theme = saved || prefer;
+            document.documentElement.setAttribute("data-theme", theme);
+            const icon = document.getElementById("theme-icon-help");
+            if (icon) icon.innerHTML = theme === "light" ? "&#9728;" : "&#9790;";
+
+            document.getElementById("btn-theme-help").addEventListener("click", () => {
+                const current = document.documentElement.getAttribute("data-theme") || "dark";
+                const next = current === "dark" ? "light" : "dark";
+                document.documentElement.setAttribute("data-theme", next);
+                localStorage.setItem("thinktank_theme", next);
+                if (icon) icon.innerHTML = next === "light" ? "&#9728;" : "&#9790;";
+            });
+        })();
+    </script>
 </body>
 </html>

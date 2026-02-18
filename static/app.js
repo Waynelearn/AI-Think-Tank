@@ -20,10 +20,12 @@ const btnEnd = document.getElementById("btn-end");
 const btnAddAgent = document.getElementById("btn-add-agent");
 const btnNewChat = document.getElementById("btn-new-chat");
 const btnHistory = document.getElementById("btn-history");
+const errorRegion = document.getElementById("error-region");
 
 // Settings refs
 const settingsToggle = document.getElementById("settings-toggle");
 const settingsBody = document.getElementById("settings-body");
+const settingsArrow = document.getElementById("settings-arrow");
 const providerSelect = document.getElementById("provider-select");
 const modelSelect = document.getElementById("model-select");
 const apiKeyProvider = document.getElementById("api-key-provider");
@@ -31,6 +33,12 @@ const apiKeyBrave = document.getElementById("api-key-brave");
 const settingsSave = document.getElementById("settings-save");
 const settingsClear = document.getElementById("settings-clear");
 const settingsNotice = document.getElementById("settings-notice");
+
+// Theme / font refs
+const btnTheme = document.getElementById("btn-theme");
+const themeIcon = document.getElementById("theme-icon");
+const btnFontDec = document.getElementById("btn-font-dec");
+const btnFontInc = document.getElementById("btn-font-inc");
 
 // Usage refs
 const usageBar = document.getElementById("usage-bar");
@@ -84,6 +92,65 @@ let heartbeatInterval = null;
 // Drag state
 let dragSrcIndex = null;
 
+// Agent response timing
+let agentStartTime = null;
+
+// Save debounce timer
+let saveDebounceTimer = null;
+
+// Font size scale
+const FONT_SIZES = [0.85, 0.9, 0.95, 1.0, 1.05, 1.15, 1.25];
+const FONT_SIZE_DEFAULT_IDX = 3;
+
+// ── Theme & Font Size ──
+
+function initTheme() {
+    const saved = localStorage.getItem("thinktank_theme");
+    const prefer = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    applyTheme(saved || prefer);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("thinktank_theme", theme);
+    if (themeIcon) {
+        themeIcon.innerHTML = theme === "light" ? "&#9728;" : "&#9790;";
+    }
+    if (btnTheme) {
+        btnTheme.setAttribute("aria-label", theme === "light" ? "Switch to dark mode" : "Switch to light mode");
+    }
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    applyTheme(current === "dark" ? "light" : "dark");
+}
+
+function initFontSize() {
+    const saved = localStorage.getItem("thinktank_font_size_idx");
+    const idx = saved !== null ? parseInt(saved) : FONT_SIZE_DEFAULT_IDX;
+    applyFontSize(idx);
+}
+
+function applyFontSize(idx) {
+    const clamped = Math.max(0, Math.min(FONT_SIZES.length - 1, idx));
+    document.documentElement.style.setProperty("--font-size-base", FONT_SIZES[clamped] + "rem");
+    localStorage.setItem("thinktank_font_size_idx", clamped);
+}
+
+function changeFontSize(delta) {
+    const current = parseInt(localStorage.getItem("thinktank_font_size_idx") || FONT_SIZE_DEFAULT_IDX);
+    applyFontSize(current + delta);
+}
+
+// Initialize theme and font immediately
+initTheme();
+initFontSize();
+
+if (btnTheme) btnTheme.addEventListener("click", toggleTheme);
+if (btnFontDec) btnFontDec.addEventListener("click", () => changeFontSize(-1));
+if (btnFontInc) btnFontInc.addEventListener("click", () => changeFontSize(1));
+
 // ── Pricing table (per million tokens) ──
 const PRICING = {
     "claude-sonnet-4-5-20250929": { input: 3, output: 15 },
@@ -109,11 +176,7 @@ function calculateCost(inputTokens, outputTokens) {
     return (inputTokens * price.input + outputTokens * price.output) / 1_000_000;
 }
 
-function formatTokens(n) {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-    if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
-    return n.toString();
-}
+// formatTokens() is in utils.js
 
 function updateUsageDisplay() {
     if (totalInputTokens === 0 && totalOutputTokens === 0) {
@@ -200,27 +263,56 @@ function renderAgentChips() {
             return `<div class="agent-chip ${sel ? "selected" : ""}"
                          id="chip-${a.name.replace(/\s+/g, "-")}"
                          data-key="${a.key}"
-                         style="border-color: ${sel ? a.color : "#333"}">
+                         role="button"
+                         tabindex="0"
+                         aria-pressed="${sel}"
+                         style="border-color: ${sel ? a.color : "var(--border-muted)"}">
                         <span class="agent-avatar">${a.avatar}</span>
-                        <span style="color: ${sel ? a.color : "#666"}">${a.name}</span>
+                        <span style="color: ${sel ? a.color : "var(--text-faint)"}">${a.name}</span>
                     </div>`;
         })
         .join("");
-
-    document.querySelectorAll(".agent-chip").forEach((chip) => {
-        chip.addEventListener("click", () => {
-            const key = chip.dataset.key;
-            if (selectedAgents.has(key)) {
-                if (selectedAgents.size <= 1) return;
-                selectedAgents.delete(key);
-            } else {
-                selectedAgents.add(key);
-            }
-            renderAgentChips();
-            if (!sessionActive) buildQueueFromSelection();
-        });
-    });
 }
+
+function updateChip(key) {
+    const a = allAgents.find((x) => x.key === key);
+    if (!a) return;
+    const chip = document.querySelector(`.agent-chip[data-key="${key}"]`);
+    if (!chip) return;
+    const sel = selectedAgents.has(key);
+    chip.classList.toggle("selected", sel);
+    chip.setAttribute("aria-pressed", sel);
+    chip.style.borderColor = sel ? a.color : "var(--border-muted)";
+    const nameSpan = chip.querySelector("span:last-child");
+    if (nameSpan) nameSpan.style.color = sel ? a.color : "var(--text-faint)";
+}
+
+function toggleAgent(key) {
+    if (selectedAgents.has(key)) {
+        if (selectedAgents.size <= 1) return;
+        selectedAgents.delete(key);
+    } else {
+        selectedAgents.add(key);
+    }
+    updateChip(key);
+    if (!sessionActive) buildQueueFromSelection();
+}
+
+// Event delegation for agent chips
+agentsBar.addEventListener("click", (e) => {
+    const chip = e.target.closest(".agent-chip");
+    if (!chip) return;
+    toggleAgent(chip.dataset.key);
+});
+
+agentsBar.addEventListener("keydown", (e) => {
+    const chip = e.target.closest(".agent-chip");
+    if (!chip) return;
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleAgent(chip.dataset.key);
+    }
+});
 
 function setChipSpeaking(name, on) {
     const chip = document.getElementById("chip-" + name.replace(/\s+/g, "-"));
@@ -404,16 +496,19 @@ function stopHeartbeat() {
 // ── Persistent Session Helpers ──
 
 function saveSessionMessages() {
-    if (persistentSessionId && localMessages.length) {
-        try {
-            localStorage.setItem(
-                `thinktank_messages_${persistentSessionId}`,
-                JSON.stringify(localMessages)
-            );
-        } catch (e) {
-            // localStorage full — non-critical
+    if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = setTimeout(() => {
+        if (persistentSessionId && localMessages.length) {
+            try {
+                localStorage.setItem(
+                    `thinktank_messages_${persistentSessionId}`,
+                    JSON.stringify(localMessages)
+                );
+            } catch (e) {
+                // localStorage full — non-critical
+            }
         }
-    }
+    }, 1000);
 }
 
 function loadSessionMessages(sid) {
@@ -799,6 +894,7 @@ function handleMessage(data) {
         case "agent_start":
             isReady = false;
             updateControls();
+            agentStartTime = Date.now();
             currentMessageEl = addAgentMessage(data.agent, data.color, data.avatar);
             setChipSpeaking(data.agent, true);
             if (queue.length && queue[0].name === data.agent) {
@@ -812,7 +908,7 @@ function handleMessage(data) {
             break;
 
         case "agent_done":
-            finishMessage();
+            finishMessage(data.agent);
             setChipSpeaking(data.agent, false);
             if (data.usage) {
                 totalInputTokens += data.usage.input_tokens || 0;
@@ -1242,24 +1338,48 @@ function appendChunk(chunk) {
     if (!currentMessageEl) return;
     const content = currentMessageEl.querySelector(".message-content");
     const cursor = content.querySelector(".cursor");
-    if (cursor) cursor.remove();
-    content.textContent += chunk;
-    const c = document.createElement("span");
-    c.className = "cursor";
-    content.appendChild(c);
+    // Find or create the text node before the cursor
+    let textNode = null;
+    if (cursor && cursor.previousSibling && cursor.previousSibling.nodeType === Node.TEXT_NODE) {
+        textNode = cursor.previousSibling;
+    }
+    if (textNode) {
+        textNode.appendData(chunk);
+    } else {
+        if (cursor) cursor.remove();
+        content.appendChild(document.createTextNode(chunk));
+        const c = document.createElement("span");
+        c.className = "cursor";
+        content.appendChild(c);
+    }
     scrollToBottom();
 }
 
-function finishMessage() {
+function finishMessage(agentNameFromEvent) {
     if (!currentMessageEl) return;
     const cursor = currentMessageEl.querySelector(".cursor");
     if (cursor) cursor.remove();
     const content = currentMessageEl.querySelector(".message-content");
-    content.innerHTML = renderMarkdown(content.textContent);
-    const agentName = currentMessageEl.querySelector(".message-name")?.textContent || "";
+    const rawText = content.textContent;
+    content.innerHTML = renderMarkdown(rawText);
+
+    // Show response time
+    if (agentStartTime) {
+        const elapsed = ((Date.now() - agentStartTime) / 1000).toFixed(1);
+        const nameEl = currentMessageEl.querySelector(".message-name");
+        if (nameEl) {
+            const timeSpan = document.createElement("span");
+            timeSpan.className = "message-time";
+            timeSpan.textContent = ` \u00b7 ${elapsed}s`;
+            nameEl.appendChild(timeSpan);
+        }
+        agentStartTime = null;
+    }
+
+    const agentName = agentNameFromEvent || currentMessageEl.querySelector(".message-name")?.textContent || "";
     localMessages.push({
         agent_name: agentName,
-        content: content.textContent,
+        content: rawText,
         round_num: currentRound,
         timestamp: new Date().toISOString(),
     });
@@ -1289,13 +1409,11 @@ function showError(msg) {
     el.textContent = msg;
     chatArea.appendChild(el);
     scrollToBottom();
+    // Announce to screen readers via alert region
+    if (errorRegion) errorRegion.textContent = msg;
 }
 
-function escapeHtml(str) {
-    const d = document.createElement("div");
-    d.textContent = str;
-    return d.innerHTML;
-}
+// escapeHtml() is in utils.js
 
 // ── Main Event Listeners ──
 
@@ -1419,7 +1537,8 @@ function updateSearchBanner() {
 
 settingsToggle.addEventListener("click", () => {
     const open = settingsBody.classList.toggle("open");
-    settingsToggle.innerHTML = open ? "&#9881; Settings &#9650;" : "&#9881; Settings &#9660;";
+    settingsToggle.setAttribute("aria-expanded", open);
+    if (settingsArrow) settingsArrow.innerHTML = open ? "&#9650;" : "&#9660;";
 });
 
 settingsSave.addEventListener("click", saveSettings);
@@ -1428,10 +1547,39 @@ settingsClear.addEventListener("click", clearSettings);
 // ── Mobile Queue Toggle ──
 const queueToggle = document.getElementById("queue-toggle");
 queueToggle.addEventListener("click", () => {
-    queuePanel.classList.toggle("mobile-open");
-    queueToggle.innerHTML = queuePanel.classList.contains("mobile-open")
+    const isOpen = queuePanel.classList.toggle("mobile-open");
+    queueToggle.setAttribute("aria-expanded", isOpen);
+    queueToggle.innerHTML = isOpen
         ? "Speaker Queue &#9650;"
         : "Speaker Queue &#9660;";
+});
+
+// ── Global Keyboard Shortcuts ──
+document.addEventListener("keydown", (e) => {
+    // Ctrl+Enter: submit from anywhere
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (sessionActive) {
+            sendUserMessage();
+        } else if (!submitBtn.disabled) {
+            submitBtn.click();
+        }
+        return;
+    }
+    // Escape: pause auto-play or close settings
+    if (e.key === "Escape") {
+        if (autoRunning) {
+            autoRunning = false;
+            updateControls();
+            return;
+        }
+        if (settingsBody.classList.contains("open")) {
+            settingsBody.classList.remove("open");
+            settingsToggle.setAttribute("aria-expanded", false);
+            if (settingsArrow) settingsArrow.innerHTML = "&#9660;";
+            return;
+        }
+    }
 });
 
 // ── Init ──

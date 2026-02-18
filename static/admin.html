@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Think Tank — Admin</title>
+    <link rel="stylesheet" href="/static/theme.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f1117; color: #e0e0e0; padding: 1.5rem; min-height: 100vh;
+            background: var(--bg-page); color: var(--text-primary); padding: 1.5rem; min-height: 100vh;
         }
-        a { color: #6cb4ee; text-decoration: none; }
+        a { color: var(--accent-sky); text-decoration: none; }
         a:hover { text-decoration: underline; }
         header {
             display: flex; align-items: center; justify-content: space-between;
@@ -18,24 +19,36 @@
         }
         h1 { font-size: 1.4rem; }
         .back-link { font-size: 0.85rem; }
+        .header-right { display: flex; align-items: center; gap: 0.5rem; }
+        .theme-toggle-admin {
+            background: var(--bg-raised);
+            border: 1px solid var(--border-muted);
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.15rem 0.4rem;
+            min-width: 2rem;
+        }
+        .theme-toggle-admin:hover { border-color: var(--accent-blue); }
 
         /* Date filter */
         .filter-bar {
             display: flex; gap: 0.6rem; align-items: center; margin-bottom: 1.5rem;
             flex-wrap: wrap;
         }
-        .filter-bar label { font-size: 0.8rem; color: #999; }
+        .filter-bar label { font-size: 0.8rem; color: var(--text-dim); }
         .filter-bar input[type="date"] {
-            background: #1a1d27; border: 1px solid #333; color: #e0e0e0;
+            background: var(--bg-raised); border: 1px solid var(--border-muted); color: var(--text-primary);
             padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;
         }
         .filter-bar button {
-            background: #4A90D9; color: #fff; border: none; padding: 0.4rem 1rem;
+            background: var(--accent-blue); color: #fff; border: none; padding: 0.4rem 1rem;
             border-radius: 6px; cursor: pointer; font-size: 0.85rem;
         }
-        .filter-bar button:hover { background: #5aa0e9; }
-        .filter-bar .clear-btn { background: #444; }
-        .filter-bar .clear-btn:hover { background: #555; }
+        .filter-bar button:hover { opacity: 0.9; }
+        .filter-bar .clear-btn { background: var(--border-muted); }
+        .filter-bar .clear-btn:hover { background: var(--text-faint); }
 
         /* Summary cards */
         .cards {
@@ -43,36 +56,36 @@
             gap: 1rem; margin-bottom: 1.5rem;
         }
         .card {
-            background: #1a1d27; border-radius: 10px; padding: 1rem;
-            border: 1px solid #282c3a;
+            background: var(--bg-raised); border-radius: 10px; padding: 1rem;
+            border: 1px solid var(--border-default);
         }
-        .card-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
-        .card-value { font-size: 1.5rem; font-weight: 700; color: #6cb4ee; }
-        .card-value.cost { color: #f0ad4e; }
+        .card-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+        .card-value { font-size: 1.5rem; font-weight: 700; color: var(--accent-sky); }
+        .card-value.cost { color: var(--accent-yellow); }
 
         /* Tables */
-        .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.6rem; color: #ccc; }
+        .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 0.6rem; color: var(--text-secondary); }
         table {
             width: 100%; border-collapse: collapse; margin-bottom: 1.5rem;
             font-size: 0.85rem;
         }
         th {
-            text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid #333;
-            color: #999; font-weight: 600; text-transform: uppercase; font-size: 0.7rem;
+            text-align: left; padding: 0.5rem 0.6rem; border-bottom: 2px solid var(--border-muted);
+            color: var(--text-dim); font-weight: 600; text-transform: uppercase; font-size: 0.7rem;
             letter-spacing: 0.05em;
         }
         td {
-            padding: 0.5rem 0.6rem; border-bottom: 1px solid #1e2130;
+            padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border-default);
         }
-        tr:hover td { background: #1a1d27; }
+        tr:hover td { background: var(--bg-raised); }
         .num { text-align: right; font-variant-numeric: tabular-nums; }
-        .cost-cell { color: #f0ad4e; font-weight: 600; }
-        .status-active { color: #5cb85c; }
-        .status-ended { color: #888; }
+        .cost-cell { color: var(--accent-yellow); font-weight: 600; }
+        .status-active { color: var(--accent-green); }
+        .status-ended { color: var(--text-dim); }
         .topic-cell { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        .loading { text-align: center; color: #888; padding: 2rem; }
-        .error-msg { color: #e74c3c; text-align: center; padding: 1rem; }
+        .loading { text-align: center; color: var(--text-dim); padding: 2rem; }
+        .error-msg { color: var(--accent-red); text-align: center; padding: 1rem; }
 
         @media (max-width: 600px) {
             body { padding: 0.8rem; }
@@ -85,13 +98,16 @@
 <body>
     <header>
         <h1>Usage Dashboard</h1>
-        <a href="/" class="back-link">&larr; Back to Think Tank</a>
+        <div class="header-right">
+            <a href="/" class="back-link">&larr; Back to Think Tank</a>
+            <button class="theme-toggle-admin" id="btn-theme-admin" aria-label="Toggle theme" title="Toggle theme"><span id="theme-icon-admin">&#9790;</span></button>
+        </div>
     </header>
 
     <div class="filter-bar">
-        <label>From</label>
+        <label for="start-date">From</label>
         <input type="date" id="start-date">
-        <label>To</label>
+        <label for="end-date">To</label>
         <input type="date" id="end-date">
         <button id="btn-filter">Filter</button>
         <button id="btn-clear-filter" class="clear-btn">Clear</button>
@@ -101,26 +117,33 @@
         <div class="loading">Loading usage data...</div>
     </div>
 
+    <script src="/static/utils.js?v=3"></script>
     <script>
         const contentEl = document.getElementById("content");
         const startDateInput = document.getElementById("start-date");
         const endDateInput = document.getElementById("end-date");
 
-        function formatTokens(n) {
-            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-            if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
-            return n.toString();
-        }
+        // Theme toggle
+        (function() {
+            const saved = localStorage.getItem("thinktank_theme");
+            const prefer = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+            const theme = saved || prefer;
+            document.documentElement.setAttribute("data-theme", theme);
+            const icon = document.getElementById("theme-icon-admin");
+            if (icon) icon.innerHTML = theme === "light" ? "&#9728;" : "&#9790;";
+
+            document.getElementById("btn-theme-admin").addEventListener("click", () => {
+                const current = document.documentElement.getAttribute("data-theme") || "dark";
+                const next = current === "dark" ? "light" : "dark";
+                document.documentElement.setAttribute("data-theme", next);
+                localStorage.setItem("thinktank_theme", next);
+                if (icon) icon.innerHTML = next === "light" ? "&#9728;" : "&#9790;";
+            });
+        })();
 
         function formatCost(c) {
             if (c < 0.01) return "$" + c.toFixed(4);
             return "$" + c.toFixed(2);
-        }
-
-        function formatDate(iso) {
-            if (!iso) return "—";
-            const d = new Date(iso);
-            return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         }
 
         async function loadUsage() {
@@ -172,19 +195,19 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Provider</th>
-                            <th>Model</th>
-                            <th class="num">Sessions</th>
-                            <th class="num">Input</th>
-                            <th class="num">Output</th>
-                            <th class="num">Cost</th>
+                            <th scope="col">Provider</th>
+                            <th scope="col">Model</th>
+                            <th scope="col" class="num">Sessions</th>
+                            <th scope="col" class="num">Input</th>
+                            <th scope="col" class="num">Output</th>
+                            <th scope="col" class="num">Cost</th>
                         </tr>
                     </thead>
                     <tbody>`;
                 for (const r of data.by_provider) {
                     html += `<tr>
-                        <td>${escapeHtml(r.provider || "—")}</td>
-                        <td>${escapeHtml(r.model || "—")}</td>
+                        <td>${escapeHtml(r.provider || "\u2014")}</td>
+                        <td>${escapeHtml(r.model || "\u2014")}</td>
                         <td class="num">${r.sessions}</td>
                         <td class="num">${formatTokens(r.input_tokens || 0)}</td>
                         <td class="num">${formatTokens(r.output_tokens || 0)}</td>
@@ -200,14 +223,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Topic</th>
-                            <th>Provider</th>
-                            <th>Model</th>
-                            <th>Status</th>
-                            <th class="num">Input</th>
-                            <th class="num">Output</th>
-                            <th class="num">Cost</th>
-                            <th>Date</th>
+                            <th scope="col">Topic</th>
+                            <th scope="col">Provider</th>
+                            <th scope="col">Model</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="num">Input</th>
+                            <th scope="col" class="num">Output</th>
+                            <th scope="col" class="num">Cost</th>
+                            <th scope="col">Date</th>
                         </tr>
                     </thead>
                     <tbody>`;
@@ -215,8 +238,8 @@
                     const statusClass = s.status === "active" ? "status-active" : "status-ended";
                     html += `<tr>
                         <td class="topic-cell" title="${escapeHtml(s.topic)}">${escapeHtml(s.topic)}</td>
-                        <td>${escapeHtml(s.provider || "—")}</td>
-                        <td>${escapeHtml(s.model || "—")}</td>
+                        <td>${escapeHtml(s.provider || "\u2014")}</td>
+                        <td>${escapeHtml(s.model || "\u2014")}</td>
                         <td class="${statusClass}">${s.status}</td>
                         <td class="num">${formatTokens(s.input_tokens || 0)}</td>
                         <td class="num">${formatTokens(s.output_tokens || 0)}</td>
@@ -232,12 +255,6 @@
             }
 
             contentEl.innerHTML = html;
-        }
-
-        function escapeHtml(str) {
-            const d = document.createElement("div");
-            d.textContent = str || "";
-            return d.innerHTML;
         }
 
         document.getElementById("btn-filter").addEventListener("click", loadUsage);

@@ -1,0 +1,89 @@
+/* ── AI Think Tank — Shared Theme Tokens ── */
+
+:root {
+    /* Backgrounds */
+    --bg-page:        #0f1117;
+    --bg-surface:     #151821;
+    --bg-raised:      #1a1d27;
+    --bg-user-msg:    #1b2333;
+    --bg-hover:       #222638;
+    --bg-drag-over:   #2a2f45;
+    --bg-error:       #2d1b1b;
+    --bg-warn:        #2d2517;
+
+    /* Borders */
+    --border-default: #222;
+    --border-muted:   #333;
+    --border-error:   #5c2020;
+    --border-warn:    #5c4a20;
+
+    /* Text */
+    --text-primary:   #e0e0e0;
+    --text-secondary: #ccc;
+    --text-muted:     #aaa;
+    --text-dim:       #888;
+    --text-faint:     #666;
+    --text-very-faint:#555;
+
+    /* Brand / accent */
+    --accent-blue:    #4A90D9;
+    --accent-purple:  #9B59B6;
+    --accent-red:     #E74C3C;
+    --accent-orange:  #E67E22;
+    --accent-green:   #27AE60;
+    --accent-green-bright: #2ECC71;
+    --accent-teal:    #1ABC9C;
+    --accent-yellow:  #F39C12;
+    --accent-yellow-bright: #F5B041;
+    --accent-sky:     #6cb4ee;
+    --error-text:     #f08080;
+
+    /* Interactive hover backgrounds */
+    --green-hover-bg: #1a2e1f;
+    --red-hover-bg:   #2d1b1b;
+    --blue-hover-bg:  #1a2333;
+    --orange-hover-bg:#2d2517;
+
+    /* Scrollbar */
+    --scrollbar-thumb:#333;
+
+    /* Font size (controlled by A+/A-) */
+    --font-size-base: 1rem;
+}
+
+html {
+    font-size: var(--font-size-base, 1rem);
+}
+
+/* ── Light Theme ── */
+[data-theme="light"] {
+    --bg-page:        #f5f6fa;
+    --bg-surface:     #ffffff;
+    --bg-raised:      #f0f1f5;
+    --bg-user-msg:    #e8f0fe;
+    --bg-hover:       #e4e5ee;
+    --bg-drag-over:   #d4d8e8;
+    --bg-error:       #fde8e8;
+    --bg-warn:        #fef3cd;
+
+    --border-default: #d0d0d8;
+    --border-muted:   #c0c0cc;
+    --border-error:   #e57373;
+    --border-warn:    #f59e0b;
+
+    --text-primary:   #1a1a2e;
+    --text-secondary: #333350;
+    --text-muted:     #555570;
+    --text-dim:       #666680;
+    --text-faint:     #888899;
+    --text-very-faint:#aaaabb;
+
+    --error-text:     #c62828;
+
+    --green-hover-bg: #e8f5e9;
+    --red-hover-bg:   #fde8e8;
+    --blue-hover-bg:  #e3f2fd;
+    --orange-hover-bg:#fff3e0;
+
+    --scrollbar-thumb:#c0c0cc;
+}
