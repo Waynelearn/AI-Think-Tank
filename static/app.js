@@ -933,8 +933,14 @@ document.getElementById("btn-clear").addEventListener("click", () => {
 
 const btnShuffle = document.getElementById("btn-shuffle");
 btnShuffle.addEventListener("click", () => {
+    console.log("[shuffle] clicked, queue.length =", queue.length);
     if (queue.length <= 1) return;
     shuffleQueue();
+    console.log("[shuffle] new order:", queue.map(q => q.name));
+    // Brief flash to confirm click
+    btnShuffle.style.background = "#F39C12";
+    btnShuffle.style.color = "#000";
+    setTimeout(() => { btnShuffle.style.background = ""; btnShuffle.style.color = ""; }, 200);
 });
 
 btnAddAgent.addEventListener("click", () => {
