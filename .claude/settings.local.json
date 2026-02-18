@@ -12,7 +12,8 @@
       "Bash(cmd.exe /c \"conda activate ai_think_tank && python -c \"\"from agents.personas import PERSONAS; print\\(len\\(PERSONAS\\), ''personas loaded''\\)\"\"\")",
       "Bash(powershell.exe -Command \"conda activate ai_think_tank; python -c ''from agents.personas import PERSONAS; print\\(len\\(PERSONAS\\), chr\\(39\\) + \"\"personas loaded\"\" + chr\\(39\\)\\)''\")",
       "Bash(powershell.exe -Command \"conda activate ai_think_tank; python -c ''from agents.personas import PERSONAS; assert all\\(\"\"system_prompt\"\" in p for p in PERSONAS.values\\(\\)\\); print\\(\"\"all prompts ok\"\"\\)''\")",
-      "Bash(powershell.exe -Command \"conda activate ai_think_tank; python test_changes.py\")"
+      "Bash(powershell.exe -Command \"conda activate ai_think_tank; python test_changes.py\")",
+      "Bash(node -e:*)"
     ]
   }
 }
