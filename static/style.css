@@ -368,14 +368,12 @@ header h1 {
     flex-direction: column;
     padding: 0.6rem;
     gap: 0.5rem;
-    opacity: 0.5;
-    pointer-events: none;
+    opacity: 0.6;
     transition: opacity 0.3s;
 }
 
 .queue-panel.active {
     opacity: 1;
-    pointer-events: auto;
 }
 
 .queue-header {
