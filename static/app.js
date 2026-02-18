@@ -247,12 +247,38 @@ function buildQueueFromSelection() {
         return a && a.name === "The Mediator";
     });
     const others = keys.filter((k) => k !== mediatorKey);
+
+    // Shuffle non-mediator agents randomly
+    for (let i = others.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [others[i], others[j]] = [others[j], others[i]];
+    }
+
     const ordered = mediatorKey ? [...others, mediatorKey] : others;
 
     queue = ordered.map((k) => {
         const a = allAgents.find((x) => x.key === k);
         return { key: a.key, name: a.name, avatar: a.avatar, color: a.color };
     });
+    renderQueue();
+}
+
+function shuffleQueue() {
+    // Separate mediator from others
+    const mediatorIdx = queue.findIndex((q) => q.name === "The Mediator");
+    let mediator = null;
+    const others = [...queue];
+    if (mediatorIdx !== -1) {
+        mediator = others.splice(mediatorIdx, 1)[0];
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = others.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [others[i], others[j]] = [others[j], others[i]];
+    }
+
+    queue = mediator ? [...others, mediator] : others;
     renderQueue();
 }
 
@@ -905,6 +931,10 @@ document.getElementById("btn-clear").addEventListener("click", () => {
     updateControls();
 });
 
+document.getElementById("btn-shuffle").addEventListener("click", () => {
+    shuffleQueue();
+});
+
 btnAddAgent.addEventListener("click", () => {
     const key = addAgentSelect.value;
     if (!key) return;
@@ -1152,7 +1182,16 @@ function loadExportData(data) {
 
 // ── DOM Helpers ──
 
-function scrollToBottom() { chatArea.scrollTop = chatArea.scrollHeight; }
+// Only auto-scroll if user is already near the bottom (within 150px)
+function isNearBottom() {
+    return chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 150;
+}
+
+function scrollToBottom(force = false) {
+    if (force || isNearBottom()) {
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+}
 
 function addDivider(text) {
     const el = document.createElement("div");
@@ -1188,7 +1227,7 @@ function addUserMessageToChat(content) {
             <div class="message-content">${escapeHtml(content)}</div>
         </div>`;
     chatArea.appendChild(el);
-    scrollToBottom();
+    scrollToBottom(true);
 }
 
 function appendChunk(chunk) {
