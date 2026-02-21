@@ -1114,9 +1114,12 @@ header h1 {
     .sentiment-vp-left,
     .sentiment-vp-right { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sentiment-vp-center { font-size: 9px; }
-    .sentiment-strip-inline { height: 28px; margin-bottom: 8px; }
-    .sentiment-dot { font-size: 14px; }
-    .sentiment-dot:hover { transform: translate(-50%, -50%) scale(1.2); }
+    .sentiment-strip-inline { gap: 3px; margin-bottom: 8px; padding: 4px 0; }
+    .sentiment-row { gap: 4px; height: 20px; }
+    .sentiment-row-label { width: 90px; font-size: 10px; }
+    .sentiment-row-track { height: 6px; }
+    .sentiment-row-dot { width: 8px; height: 8px; }
+    .sentiment-row-value { width: 30px; font-size: 10px; }
     .sentiment-chart-title { font-size: 11px; margin-bottom: 4px; }
     #sentiment-canvas { height: 350px; }
     .sentiment-legend { gap: 3px 8px; padding: 4px 0; }
@@ -1289,34 +1292,78 @@ header h1 {
 .sentiment-vp-center { color: var(--text-very-faint); font-size: 11px; }
 .sentiment-vp-right { color: var(--accent-green); font-weight: 600; }
 
-/* ── Inline Strip (inside panel) ── */
+/* ── Agent Spectrum Rows (inside panel) ── */
 .sentiment-strip-inline {
-    position: relative;
-    height: 32px;
-    background: linear-gradient(90deg,
-        rgba(231, 76, 60, 0.15),
-        rgba(128, 128, 128, 0.08) 50%,
-        rgba(39, 174, 96, 0.15)
-    );
-    border-radius: 16px;
-    border: 1px solid var(--border-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     margin-bottom: 16px;
+    padding: 8px 0;
 }
 
-.sentiment-dot {
+.sentiment-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 24px;
+}
+
+.sentiment-row-label {
+    flex-shrink: 0;
+    width: 130px;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sentiment-row-track {
+    flex: 1;
+    position: relative;
+    height: 8px;
+    background: linear-gradient(90deg,
+        rgba(231, 76, 60, 0.12),
+        rgba(128, 128, 128, 0.06) 50%,
+        rgba(39, 174, 96, 0.12)
+    );
+    border-radius: 4px;
+    border: 1px solid var(--border-muted);
+}
+
+.sentiment-row-center {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--text-very-faint);
+    opacity: 0.5;
+}
+
+.sentiment-row-fill {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    border-radius: 3px;
+    opacity: 0.35;
+    transition: left 0.5s ease, width 0.5s ease;
+}
+
+.sentiment-row-fill-outlier {
+    opacity: 0.55;
+}
+
+.sentiment-row-dot {
     position: absolute;
     top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
     transform: translate(-50%, -50%);
-    font-size: 18px;
-    line-height: 1;
+    border: 2px solid;
     transition: left 0.5s ease;
-    cursor: default;
     z-index: 1;
-}
-
-.sentiment-dot:hover {
-    transform: translate(-50%, -50%) scale(1.4);
-    z-index: 2;
 }
 
 .sentiment-dot-outlier {
@@ -1324,29 +1371,16 @@ header h1 {
 }
 
 @keyframes sentiment-pulse {
-    0%, 100% { filter: drop-shadow(0 0 0 transparent); }
-    50% { filter: drop-shadow(0 0 6px rgba(255, 107, 157, 0.6)); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0); }
+    50% { box-shadow: 0 0 6px 2px rgba(255, 107, 157, 0.5); }
 }
 
-.sentiment-dot-tooltip {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--bg-raised);
-    border: 1px solid var(--border-muted);
-    border-radius: 4px;
-    padding: 3px 8px;
+.sentiment-row-value {
+    flex-shrink: 0;
+    width: 36px;
     font-size: 11px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.sentiment-dot:hover .sentiment-dot-tooltip {
-    opacity: 1;
+    font-weight: 600;
+    text-align: right;
 }
 
 /* ── Chart Section ── */

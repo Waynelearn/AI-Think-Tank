@@ -2138,30 +2138,70 @@ function renderSentimentStripInPanel(latestEntry) {
     sentimentStripTrackPanel.innerHTML = "";
 
     const scores = latestEntry.scores;
-    // Compute mean for outlier detection
     const scoreValues = Object.values(scores).filter(s => typeof s === "number");
     const mean = scoreValues.length ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length : 0;
 
-    for (const [agentName, score] of Object.entries(scores)) {
-        if (typeof score !== "number") continue;
+    // Sort agents by score (highest first) for visual clarity
+    const sorted = Object.entries(scores)
+        .filter(([, s]) => typeof s === "number")
+        .sort((a, b) => b[1] - a[1]);
+
+    for (const [agentName, score] of sorted) {
         const agent = allAgents.find(a => a.name === agentName);
         const isOutlier = Math.abs(score - mean) > 0.7 || Math.abs(score) >= 1.0;
-
-        const dot = document.createElement("div");
-        dot.className = "sentiment-dot" + (isOutlier ? " sentiment-dot-outlier" : "");
-        dot.textContent = agent ? agent.avatar : "?";
-
-        // Map score (-1 to +1) to percentage (0% to 100%)
-        const pct = ((score + 1) / 2) * 100;
-        dot.style.left = `${Math.max(3, Math.min(97, pct))}%`;
-
-        const tooltip = document.createElement("span");
-        tooltip.className = "sentiment-dot-tooltip";
+        const color = agent ? agent.color : "#888";
         const avatar = agent ? agent.avatar : "?";
-        tooltip.textContent = `${avatar} ${agentName}: ${score > 0 ? "+" : ""}${score.toFixed(1)}`;
-        dot.appendChild(tooltip);
+        const pct = ((score + 1) / 2) * 100;
 
-        sentimentStripTrackPanel.appendChild(dot);
+        const row = document.createElement("div");
+        row.className = "sentiment-row";
+
+        // Agent label (emoji + short name)
+        const label = document.createElement("span");
+        label.className = "sentiment-row-label";
+        label.textContent = `${avatar} ${agentName}`;
+        label.title = agentName;
+
+        // Track bar
+        const track = document.createElement("div");
+        track.className = "sentiment-row-track";
+
+        // Center line marker
+        const center = document.createElement("div");
+        center.className = "sentiment-row-center";
+        track.appendChild(center);
+
+        // Filled bar from center to score position
+        const fill = document.createElement("div");
+        fill.className = "sentiment-row-fill" + (isOutlier ? " sentiment-row-fill-outlier" : "");
+        if (score >= 0) {
+            fill.style.left = "50%";
+            fill.style.width = `${(score / 2) * 100}%`;
+        } else {
+            fill.style.left = `${50 + (score / 2) * 100}%`;
+            fill.style.width = `${(-score / 2) * 100}%`;
+        }
+        fill.style.background = color;
+        track.appendChild(fill);
+
+        // Dot marker at score position
+        const dot = document.createElement("div");
+        dot.className = "sentiment-row-dot" + (isOutlier ? " sentiment-dot-outlier" : "");
+        dot.style.left = `${Math.max(2, Math.min(98, pct))}%`;
+        dot.style.borderColor = color;
+        dot.style.background = color;
+        track.appendChild(dot);
+
+        // Score value
+        const val = document.createElement("span");
+        val.className = "sentiment-row-value";
+        val.textContent = `${score > 0 ? "+" : ""}${score.toFixed(1)}`;
+        val.style.color = color;
+
+        row.appendChild(label);
+        row.appendChild(track);
+        row.appendChild(val);
+        sentimentStripTrackPanel.appendChild(row);
     }
 }
 
