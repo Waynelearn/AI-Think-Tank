@@ -72,6 +72,8 @@ class DiscussionEngine:
                     live_keys["word_limit"] = cmd["word_limit"]
                 if "tone" in cmd:
                     live_keys["tone"] = cmd["tone"]
+                if "context_limit" in cmd:
+                    live_keys["context_limit"] = cmd["context_limit"]
 
                 await self._run_single_agent(websocket, agent, discussion, topic,
                                              round_num, file_context, live_keys, session_id,
@@ -152,12 +154,21 @@ class DiscussionEngine:
         """Stream a single agent's response."""
         word_limit = int((api_keys or {}).get("word_limit", 0))
         tone = (api_keys or {}).get("tone", "")
+        context_limit = int((api_keys or {}).get("context_limit", 0))
+
+        # Compact context if needed (before building messages)
+        if context_limit > 0 and round_num > 1:
+            await self._maybe_compact_context(
+                discussion, round_num, context_limit, api_keys
+            )
+
         messages = self._build_messages(discussion, topic, round_num, file_context,
                                         word_limit=word_limit, tone=tone,
                                         continue_from=continue_from,
                                         continue_agent=agent.name if continue_from else "",
                                         agent_key=agent_key,
-                                        fixed_viewpoints=fixed_viewpoints)
+                                        fixed_viewpoints=fixed_viewpoints,
+                                        context_limit=context_limit)
 
         if not agent_key:
             agent_key = next((k for k, a in self.registry.agents.items() if a is agent), "")
@@ -312,6 +323,95 @@ class DiscussionEngine:
         except Exception as e:
             logger.warning(f"Sentiment data extraction failed: {e}")
 
+    # ── Context Compaction ──
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        """Rough token estimate: ~4 characters per token."""
+        return len(text) // 4
+
+    async def _maybe_compact_context(self, discussion: Discussion,
+                                      current_round: int, context_limit: int,
+                                      api_keys: dict | None = None):
+        """Compact older rounds into a summary if the transcript exceeds the token limit."""
+        if current_round <= 1:
+            return
+
+        # Check if we already have a valid cached summary
+        if (discussion._compacted_summary
+                and discussion._compacted_through_round >= current_round - 1
+                and discussion._compacted_msg_count == len(discussion.messages)):
+            return
+
+        # Estimate full transcript tokens
+        full_transcript = discussion.get_transcript()
+        estimated_tokens = self._estimate_tokens(full_transcript)
+
+        if estimated_tokens <= context_limit:
+            return  # Under limit, no compaction needed
+
+        # Get the older rounds to summarize
+        older_text = discussion.get_older_rounds_transcript(current_round)
+        if not older_text.strip():
+            return
+
+        logger.info(
+            f"Context compaction: ~{estimated_tokens} tokens exceeds {context_limit} limit. "
+            f"Summarizing rounds 1-{current_round - 1}."
+        )
+
+        # Use the Curator agent (or any available agent) for summarization
+        # We create a one-shot summarization request
+        summary_agent = self.registry.get_observer("the_curator")
+        if not summary_agent:
+            # Fallback: use any available agent
+            for agent in self.registry.agents.values():
+                summary_agent = agent
+                break
+        if not summary_agent:
+            return
+
+        target_length = max(500, context_limit // 4)
+
+        summary_messages = [{
+            "role": "user",
+            "content": (
+                "You are a discussion summarizer. Condense the following multi-round discussion "
+                "into a structured summary that preserves ALL essential information.\n\n"
+                f"TARGET LENGTH: approximately {target_length // 4} words.\n\n"
+                "YOUR SUMMARY MUST INCLUDE:\n"
+                "1. **Key positions**: For EACH panelist who spoke, state their core argument "
+                "and stance in 1-2 sentences. Use their names.\n"
+                "2. **Points of agreement**: What the group largely agrees on.\n"
+                "3. **Points of contention**: The main disagreements that remain unresolved.\n"
+                "4. **Evolution**: How positions shifted across rounds (if applicable).\n"
+                "5. **The Judge's verdict**: If The Judge spoke, summarize their evaluation and directives.\n"
+                "6. **User instructions**: If the user interjected, preserve their exact requests.\n\n"
+                "DO NOT add commentary or analysis. Just compress the information faithfully.\n"
+                "DO NOT use bullet points excessively — write dense paragraphs.\n\n"
+                f"DISCUSSION TO SUMMARIZE:\n{older_text}"
+            ),
+        }]
+
+        try:
+            summary_response = ""
+            async for item in summary_agent.stream_response(summary_messages, api_keys=api_keys):
+                if isinstance(item, Usage):
+                    pass
+                else:
+                    summary_response += item
+
+            if summary_response.strip():
+                discussion._compacted_summary = summary_response.strip()
+                discussion._compacted_through_round = current_round - 1
+                discussion._compacted_msg_count = len(discussion.messages)
+                logger.info(
+                    f"Context compacted: {self._estimate_tokens(older_text)} → "
+                    f"{self._estimate_tokens(summary_response)} tokens"
+                )
+        except Exception as e:
+            logger.warning(f"Context compaction failed: {e}")
+
     # ── Helpers ──
 
     def _clean_json_response(self, raw: str) -> str:
@@ -413,7 +513,8 @@ class DiscussionEngine:
                         continue_from: str = "",
                         continue_agent: str = "",
                         agent_key: str = "",
-                        fixed_viewpoints: list[str] | None = None) -> list[dict]:
+                        fixed_viewpoints: list[str] | None = None,
+                        context_limit: int = 0) -> list[dict]:
         """Build the message history for the Claude API call."""
         file_section = ""
         if file_context:
@@ -484,7 +585,20 @@ class DiscussionEngine:
                 "you MUST call the image_search tool and include the image using markdown: ![description](image_url)."
             )
 
-        transcript = discussion.get_transcript()
+        # Use compacted transcript if available, otherwise full transcript
+        if (context_limit > 0 and current_round > 1
+                and discussion._compacted_summary
+                and discussion._compacted_through_round >= current_round - 1):
+            current_round_text = discussion.get_current_round_transcript(current_round)
+            transcript = (
+                f"Topic: {topic}\n\n"
+                f"═══ SUMMARY OF PREVIOUS ROUNDS (rounds 1-{discussion._compacted_through_round}) ═══\n"
+                f"{discussion._compacted_summary}\n"
+                f"═══ END SUMMARY ═══\n\n"
+                f"{current_round_text}"
+            )
+        else:
+            transcript = discussion.get_transcript()
 
         # Extract The Judge's latest verdict to inject as priority instruction
         judge_instruction = ""

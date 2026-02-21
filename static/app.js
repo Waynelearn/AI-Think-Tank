@@ -59,6 +59,7 @@ const modelSelect = document.getElementById("model-select");
 const apiKeyProvider = document.getElementById("api-key-provider");
 const apiKeyBrave = document.getElementById("api-key-brave");
 const wordLimitInput = document.getElementById("word-limit");
+const contextLimitSelect = document.getElementById("context-limit");
 const toneSelect = document.getElementById("tone-select");
 const settingsSave = document.getElementById("settings-save");
 const settingsClear = document.getElementById("settings-clear");
@@ -1272,6 +1273,7 @@ function processNextInQueue() {
             agent_key: next.key,
             word_limit: parseInt(wordLimitInput.value) || 0,
             tone: toneSelect.value || "",
+            context_limit: parseInt(contextLimitSelect.value) || 0,
         };
         if (next.continue_from) cmd.continue_from = next.continue_from;
         sendCmd(cmd);
@@ -1836,6 +1838,9 @@ function loadSavedSettings() {
     const savedWordLimit = localStorage.getItem("thinktank_word_limit") || "";
     wordLimitInput.value = savedWordLimit;
 
+    const savedContextLimit = localStorage.getItem("thinktank_context_limit") || "0";
+    contextLimitSelect.value = savedContextLimit;
+
     const savedTone = localStorage.getItem("thinktank_tone") || "";
     toneSelect.value = savedTone;
 
@@ -1863,6 +1868,10 @@ function saveSettings() {
     if (wl > 0) localStorage.setItem("thinktank_word_limit", wl);
     else localStorage.removeItem("thinktank_word_limit");
 
+    const cl = parseInt(contextLimitSelect.value) || 0;
+    if (cl > 0) localStorage.setItem("thinktank_context_limit", cl);
+    else localStorage.removeItem("thinktank_context_limit");
+
     const tone = toneSelect.value;
     if (tone) localStorage.setItem("thinktank_tone", tone);
     else localStorage.removeItem("thinktank_tone");
@@ -1887,12 +1896,14 @@ function clearSettings() {
     localStorage.removeItem(`thinktank_api_key_${providerKey}`);
     localStorage.removeItem(STORAGE_KEY_BRAVE);
     localStorage.removeItem("thinktank_word_limit");
+    localStorage.removeItem("thinktank_context_limit");
     localStorage.removeItem("thinktank_tone");
     localStorage.removeItem("thinktank_viewpoint_a");
     localStorage.removeItem("thinktank_viewpoint_b");
     apiKeyProvider.value = "";
     apiKeyBrave.value = "";
     wordLimitInput.value = "";
+    contextLimitSelect.value = "0";
     toneSelect.value = "";
     viewpointAInput.value = "";
     viewpointBInput.value = "";
