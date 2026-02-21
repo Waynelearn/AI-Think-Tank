@@ -729,6 +729,19 @@ async function resumeSessionById(sid) {
         const panel = document.getElementById("history-panel");
         if (panel) panel.remove();
 
+        // Save current session's sentiment before switching away
+        if (persistentSessionId && sentimentHistory.length) {
+            try {
+                localStorage.setItem(
+                    `thinktank_sentiment_${persistentSessionId}`,
+                    JSON.stringify({ sentimentHistory, sentimentCommentaryMap })
+                );
+            } catch (e) { /* non-critical */ }
+        }
+
+        // Close WS to old session
+        if (ws) { ws.close(); ws = null; }
+
         // Set as current session
         persistentSessionId = sid;
         localStorage.setItem("thinktank_session_id", sid);
@@ -794,7 +807,23 @@ function resumeSession(session) {
 
     currentRound = session.current_round || 1;
 
-    // Restore sentiment data from localStorage
+    // Fully reset sentiment state and UI before loading new session's data
+    sentimentHistory = [];
+    sentimentCommentaryMap = {};
+    sentimentChartOpen = false;
+    sentimentPanel.style.display = "none";
+    sentimentBadge.style.display = "none";
+    sentimentStripTrackPanel.innerHTML = "";
+    sentimentLegend.innerHTML = "";
+    viewpointAInput.value = "";
+    viewpointBInput.value = "";
+    if (sentimentEmptyState) sentimentEmptyState.style.display = "block";
+    if (sentimentChartSection) sentimentChartSection.style.display = "none";
+    if (sentimentVpLabels) sentimentVpLabels.style.display = "none";
+    if (sentimentStripTrackPanel) sentimentStripTrackPanel.style.display = "none";
+    if (sentimentCommentary) sentimentCommentary.style.display = "none";
+
+    // Now load this session's sentiment data from localStorage
     const savedSentiment = loadSentimentData(persistentSessionId);
     sentimentHistory = savedSentiment.sentimentHistory;
     sentimentCommentaryMap = savedSentiment.sentimentCommentaryMap;
@@ -804,8 +833,8 @@ function resumeSession(session) {
         // Restore viewpoint inputs from latest entry
         const latest = sentimentHistory[sentimentHistory.length - 1];
         if (latest.viewpoints && latest.viewpoints.length >= 2) {
-            if (!viewpointAInput.value.trim()) viewpointAInput.value = latest.viewpoints[0].label || "";
-            if (!viewpointBInput.value.trim()) viewpointBInput.value = latest.viewpoints[1].label || "";
+            viewpointAInput.value = latest.viewpoints[0].label || "";
+            viewpointBInput.value = latest.viewpoints[1].label || "";
         }
     }
 
