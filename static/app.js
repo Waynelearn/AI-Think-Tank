@@ -602,9 +602,40 @@ function loadSessionMessages(sid) {
     }
 }
 
+function saveSentimentData() {
+    if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = setTimeout(() => {
+        if (persistentSessionId && (sentimentHistory.length || Object.keys(sentimentCommentaryMap).length)) {
+            try {
+                localStorage.setItem(
+                    `thinktank_sentiment_${persistentSessionId}`,
+                    JSON.stringify({ sentimentHistory, sentimentCommentaryMap })
+                );
+            } catch (e) {
+                // localStorage full — non-critical
+            }
+        }
+    }, 1000);
+}
+
+function loadSentimentData(sid) {
+    try {
+        const raw = localStorage.getItem(`thinktank_sentiment_${sid}`);
+        if (!raw) return { sentimentHistory: [], sentimentCommentaryMap: {} };
+        const data = JSON.parse(raw);
+        return {
+            sentimentHistory: data.sentimentHistory || [],
+            sentimentCommentaryMap: data.sentimentCommentaryMap || {},
+        };
+    } catch (e) {
+        return { sentimentHistory: [], sentimentCommentaryMap: {} };
+    }
+}
+
 function clearPersistedSession() {
     if (persistentSessionId) {
         localStorage.removeItem(`thinktank_messages_${persistentSessionId}`);
+        localStorage.removeItem(`thinktank_sentiment_${persistentSessionId}`);
     }
     localStorage.removeItem("thinktank_session_id");
     persistentSessionId = "";
@@ -715,8 +746,9 @@ async function deleteSessionById(sid) {
         if (sid === persistentSessionId) {
             clearPersistedSession();
         }
-        // Also remove localStorage messages for this session
+        // Also remove localStorage data for this session
         localStorage.removeItem(`thinktank_messages_${sid}`);
+        localStorage.removeItem(`thinktank_sentiment_${sid}`);
         // Refresh history
         loadSessionHistory();
     } catch (e) {
@@ -762,6 +794,21 @@ function resumeSession(session) {
 
     currentRound = session.current_round || 1;
 
+    // Restore sentiment data from localStorage
+    const savedSentiment = loadSentimentData(persistentSessionId);
+    sentimentHistory = savedSentiment.sentimentHistory;
+    sentimentCommentaryMap = savedSentiment.sentimentCommentaryMap;
+    if (sentimentHistory.length) {
+        sentimentBadge.style.display = "inline-flex";
+        sentimentBadge.textContent = sentimentHistory.length;
+        // Restore viewpoint inputs from latest entry
+        const latest = sentimentHistory[sentimentHistory.length - 1];
+        if (latest.viewpoints && latest.viewpoints.length >= 2) {
+            if (!viewpointAInput.value.trim()) viewpointAInput.value = latest.viewpoints[0].label || "";
+            if (!viewpointBInput.value.trim()) viewpointBInput.value = latest.viewpoints[1].label || "";
+        }
+    }
+
     // Start WS with existing session_id to resume server-side
     startSession(true);
 }
@@ -771,6 +818,16 @@ function newChat() {
     if (ws) {
         ws.close();
         ws = null;
+    }
+
+    // Save sentiment data for the current session before switching away
+    if (persistentSessionId && sentimentHistory.length) {
+        try {
+            localStorage.setItem(
+                `thinktank_sentiment_${persistentSessionId}`,
+                JSON.stringify({ sentimentHistory, sentimentCommentaryMap })
+            );
+        } catch (e) { /* non-critical */ }
     }
 
     // Clear current persistent session from localStorage (but keep it in DB)
@@ -816,6 +873,8 @@ function newChat() {
     if (sentimentVpLabels) sentimentVpLabels.style.display = "none";
     if (sentimentStripTrackPanel) sentimentStripTrackPanel.style.display = "none";
     if (sentimentCommentary) sentimentCommentary.style.display = "none";
+    viewpointAInput.value = "";
+    viewpointBInput.value = "";
 
     // Remove history/resume panels
     const panel = document.getElementById("history-panel");
@@ -1381,6 +1440,8 @@ function getSnapshotExport() {
         topic: currentTopic || base.topic,
         agent_keys: base.agent_keys?.length ? base.agent_keys : Array.from(selectedAgents),
         messages: localMessages.length ? localMessages : base.messages,
+        sentimentHistory: sentimentHistory.length ? sentimentHistory : (base.sentimentHistory || []),
+        sentimentCommentaryMap: Object.keys(sentimentCommentaryMap).length ? sentimentCommentaryMap : (base.sentimentCommentaryMap || {}),
     };
 }
 
@@ -1483,6 +1544,20 @@ function loadExportData(data) {
         selectedAgents = new Set(data.agent_keys);
         renderAgentChips();
     }
+
+    // Restore sentiment data from export
+    sentimentHistory = data.sentimentHistory || [];
+    sentimentCommentaryMap = data.sentimentCommentaryMap || {};
+    if (sentimentHistory.length) {
+        sentimentBadge.style.display = "inline-flex";
+        sentimentBadge.textContent = sentimentHistory.length;
+        const latest = sentimentHistory[sentimentHistory.length - 1];
+        if (latest.viewpoints && latest.viewpoints.length >= 2) {
+            viewpointAInput.value = latest.viewpoints[0].label || "";
+            viewpointBInput.value = latest.viewpoints[1].label || "";
+        }
+    }
+
     chatArea.innerHTML = "";
     addDivider(`Loaded: "${data.topic}"`);
     let curRound = 0;
@@ -1872,6 +1947,9 @@ function handleSentimentUpdate(data) {
     sentimentBadge.style.display = "inline-flex";
     sentimentBadge.textContent = sentimentHistory.length;
 
+    // Persist sentiment data
+    saveSentimentData();
+
     // If panel is open, refresh it
     if (sentimentChartOpen) renderSentimentPanel();
 }
@@ -1881,6 +1959,8 @@ let sentimentCommentaryMap = {}; // {round: "commentary text"}
 
 function handleSentimentCommentary(round, commentary) {
     sentimentCommentaryMap[round] = commentary;
+    // Persist sentiment data
+    saveSentimentData();
     // Update round selector
     updateSentimentRoundSelect();
     if (sentimentChartOpen) renderSentimentPanel();
