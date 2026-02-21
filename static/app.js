@@ -851,7 +851,8 @@ async function startSession(isResume = false) {
         currentTopic = topic;
         addDivider(`Topic: "${topic}"`);
     } else {
-        buildQueueFromSelection();
+        // On resume: only rebuild queue if it's empty (preserve re-queued agents from interruptions)
+        if (queue.length === 0) buildQueueFromSelection();
         queueRound.textContent = `Round ${currentRound}`;
     }
 
@@ -969,14 +970,16 @@ function handleIncompleteResponse() {
     agentStartTime = null;
 
     // Re-queue the agent at the front so they retry on reconnect
-    if (agent.key) {
+    const agentKey = agent.key || allAgents.find(a => a.name === agent.name)?.key || "";
+    if (agentKey) {
         // Remove any existing entry for this agent to avoid duplicates
-        queue = queue.filter(q => q.key !== agent.key);
+        queue = queue.filter(q => q.key !== agentKey);
         queue.unshift({
-            key: agent.key,
+            key: agentKey,
             name: agent.name,
-            avatar: agent.avatar,
-            color: agent.color,
+            avatar: agent.avatar || allAgents.find(a => a.key === agentKey)?.avatar || "?",
+            color: agent.color || allAgents.find(a => a.key === agentKey)?.color || "#888",
+            continue_from: "their interrupted response",
         });
         renderQueue();
     }
@@ -1124,7 +1127,9 @@ function processNextInQueue() {
         // Regular agent
         isReady = false;
         updateControls();
-        sendCmd({ action: "run_agent", agent_key: next.key });
+        const cmd = { action: "run_agent", agent_key: next.key };
+        if (next.continue_from) cmd.continue_from = next.continue_from;
+        sendCmd(cmd);
         return true;
     }
 }
@@ -2010,6 +2015,7 @@ function handleCuratorRequeue(data) {
         name: agentName,
         avatar: data.avatar || "?",
         color: data.color || "#888",
+        continue_from: lastTopic,
     });
     renderQueue();
     updateControls();

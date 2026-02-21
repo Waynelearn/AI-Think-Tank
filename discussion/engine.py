@@ -55,6 +55,7 @@ class DiscussionEngine:
 
             elif action == "run_agent":
                 agent_key = cmd.get("agent_key", "")
+                continue_from = cmd.get("continue_from", "")
                 agent = self.registry.get_agent(agent_key) if agent_key in self.registry.agents else None
                 if not agent:
                     await self._send(websocket, {"type": "error", "message": f"Unknown agent: {agent_key}"})
@@ -62,7 +63,8 @@ class DiscussionEngine:
                     continue
 
                 await self._run_single_agent(websocket, agent, discussion, topic,
-                                             round_num, file_context, api_keys, session_id)
+                                             round_num, file_context, api_keys, session_id,
+                                             continue_from=continue_from)
 
                 # Run curator check on the agent's response
                 await self._run_curator_check(
@@ -139,10 +141,13 @@ class DiscussionEngine:
 
     async def _run_single_agent(self, websocket: WebSocket, agent, discussion: Discussion,
                                  topic: str, round_num: int, file_context: str,
-                                 api_keys: dict | None = None, session_id: str = ""):
+                                 api_keys: dict | None = None, session_id: str = "",
+                                 continue_from: str = ""):
         """Stream a single agent's response."""
         word_limit = int((api_keys or {}).get("word_limit", 0))
-        messages = self._build_messages(discussion, topic, round_num, file_context, word_limit=word_limit)
+        messages = self._build_messages(discussion, topic, round_num, file_context,
+                                        word_limit=word_limit, continue_from=continue_from,
+                                        continue_agent=agent.name if continue_from else "")
 
         await self._send(websocket, {
             "type": "agent_start",
@@ -377,7 +382,8 @@ class DiscussionEngine:
 
     def _build_messages(self, discussion: Discussion, topic: str,
                         current_round: int, file_context: str = "",
-                        word_limit: int = 0) -> list[dict]:
+                        word_limit: int = 0, continue_from: str = "",
+                        continue_agent: str = "") -> list[dict]:
         """Build the message history for the Claude API call."""
         file_section = ""
         if file_context:
@@ -391,6 +397,17 @@ class DiscussionEngine:
         if word_limit and word_limit > 0:
             word_limit_instruction = (
                 f"\n\nIMPORTANT: Keep your response under {word_limit} words. Be concise and focused."
+            )
+
+        continuation_instruction = ""
+        if continue_from and continue_agent:
+            continuation_instruction = (
+                f"\n\nCRITICAL — CONTINUATION MODE: Your previous response as {continue_agent} was "
+                f"CUT OFF mid-thought. You were discussing: \"{continue_from}\". "
+                f"Your truncated response is the last entry from {continue_agent} in the transcript above. "
+                f"Do NOT repeat what you already said. Do NOT start over. "
+                f"Pick up EXACTLY where you left off and finish your thought. "
+                f"Begin your continuation seamlessly as if mid-paragraph."
             )
 
         if not discussion.messages:
@@ -419,6 +436,18 @@ class DiscussionEngine:
             )
 
         transcript = discussion.get_transcript()
+
+        if continuation_instruction:
+            return [{
+                "role": "user",
+                "content": (
+                    f"The discussion topic is: {topic}{file_section}\n\n"
+                    f"Here is the discussion so far:\n{transcript}\n\n"
+                    f"{continuation_instruction}"
+                    f"{word_limit_instruction}"
+                ),
+            }]
+
         return [{
             "role": "user",
             "content": (
