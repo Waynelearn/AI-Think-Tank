@@ -1098,22 +1098,26 @@ header h1 {
     .welcome-message { font-size: 13px; }
     .welcome-sub { font-size: 11px; }
 
-    .sentiment-strip { padding: 4px 6px; margin-top: 2px; }
-    #sentiment-canvas { height: 140px; }
+    .sentiment-strip { padding: 2px 6px; margin: 1px 0; }
+    .sentiment-strip-track { height: 14px; }
+    .sentiment-dot { width: 10px; height: 10px; }
+    .sentiment-strip-labels { font-size: 8px; }
+
+    .sentiment-chart-overlay { bottom: 60px; width: 95vw; }
+    #sentiment-canvas { height: 120px; }
     .sentiment-legend { gap: 4px; font-size: 10px; }
-    .sentiment-strip-labels { font-size: 9px; }
 }
 
-/* ── Sentiment Spectrum Strip ── */
+/* ── Sentiment Spectrum Strip (compact, between chat and input) ── */
 .sentiment-strip {
     flex-shrink: 0;
-    padding: 6px 12px;
+    padding: 3px 10px;
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
-    border-radius: 6px;
+    border-radius: 5px;
     cursor: pointer;
     transition: border-color 0.2s;
-    margin-top: 4px;
+    margin: 2px 0;
 }
 
 .sentiment-strip:hover {
@@ -1123,31 +1127,31 @@ header h1 {
 .sentiment-strip-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-faint);
-    margin-bottom: 3px;
+    margin-bottom: 1px;
 }
 
 .sentiment-label-left { color: var(--accent-red); }
-.sentiment-label-center { color: var(--text-very-faint); }
+.sentiment-label-center { color: var(--text-very-faint); font-size: 8px; }
 .sentiment-label-right { color: var(--accent-green); }
 
 .sentiment-strip-track {
     position: relative;
-    height: 20px;
+    height: 16px;
     background: linear-gradient(90deg,
         rgba(231, 76, 60, 0.15),
         rgba(128, 128, 128, 0.08) 50%,
         rgba(39, 174, 96, 0.15)
     );
-    border-radius: 10px;
+    border-radius: 8px;
     border: 1px solid var(--border-muted);
 }
 
 .sentiment-dot {
     position: absolute;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
@@ -1183,14 +1187,24 @@ header h1 {
     opacity: 1;
 }
 
-/* ── Sentiment Chart Container ── */
-.sentiment-chart-container {
-    flex-shrink: 0;
+/* ── Sentiment Chart Overlay (floats above chat, doesn't push layout) ── */
+.sentiment-chart-overlay {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(90vw, 700px);
+    z-index: 100;
+    pointer-events: none;
+}
+
+.sentiment-chart-overlay .sentiment-chart-container {
+    pointer-events: auto;
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
     border-radius: 8px;
     padding: 8px 12px;
-    margin-top: 4px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
 .sentiment-chart-header {
@@ -1221,7 +1235,7 @@ header h1 {
 
 #sentiment-canvas {
     width: 100%;
-    height: 200px;
+    height: 180px;
     display: block;
 }
 
@@ -1229,7 +1243,7 @@ header h1 {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding-top: 6px;
+    padding-top: 4px;
     justify-content: center;
 }
 

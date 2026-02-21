@@ -114,7 +114,7 @@
             </div>
         </div>
 
-        <!-- Sentiment Spectrum Strip (always visible when data exists) -->
+        <!-- Sentiment Spectrum Strip (pinned between chat and input, compact) -->
         <div class="sentiment-strip" id="sentiment-strip" style="display:none;"
              role="button" tabindex="0" aria-label="Sentiment spectrum — click to expand chart"
              title="Click to expand sentiment chart">
@@ -126,16 +126,17 @@
             <div class="sentiment-strip-track" id="sentiment-strip-track"></div>
         </div>
 
-        <!-- Expandable Sentiment Chart -->
-        <div class="sentiment-chart-container" id="sentiment-chart-container" style="display:none;"
-             role="region" aria-label="Sentiment time-series chart">
-            <div class="sentiment-chart-header">
-                <span class="sentiment-chart-title">Viewpoint Alignment Over Rounds</span>
-                <button class="sentiment-chart-close" id="sentiment-chart-close"
-                        aria-label="Collapse sentiment chart">&times;</button>
+        <!-- Expandable Sentiment Chart (overlay, doesn't push layout) -->
+        <div class="sentiment-chart-overlay" id="sentiment-chart-container" style="display:none;">
+            <div class="sentiment-chart-container" role="region" aria-label="Sentiment time-series chart">
+                <div class="sentiment-chart-header">
+                    <span class="sentiment-chart-title">Viewpoint Alignment Over Rounds</span>
+                    <button class="sentiment-chart-close" id="sentiment-chart-close"
+                            aria-label="Collapse sentiment chart">&times;</button>
+                </div>
+                <canvas id="sentiment-canvas" width="800" height="300"></canvas>
+                <div class="sentiment-legend" id="sentiment-legend"></div>
             </div>
-            <canvas id="sentiment-canvas" width="800" height="300"></canvas>
-            <div class="sentiment-legend" id="sentiment-legend"></div>
         </div>
 
         <!-- Error region for screen readers -->
