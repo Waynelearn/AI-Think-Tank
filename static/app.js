@@ -41,6 +41,7 @@ const modelSelect = document.getElementById("model-select");
 const apiKeyProvider = document.getElementById("api-key-provider");
 const apiKeyBrave = document.getElementById("api-key-brave");
 const wordLimitInput = document.getElementById("word-limit");
+const toneSelect = document.getElementById("tone-select");
 const settingsSave = document.getElementById("settings-save");
 const settingsClear = document.getElementById("settings-clear");
 const settingsNotice = document.getElementById("settings-notice");
@@ -1668,6 +1669,9 @@ function loadSavedSettings() {
     const savedWordLimit = localStorage.getItem("thinktank_word_limit") || "";
     wordLimitInput.value = savedWordLimit;
 
+    const savedTone = localStorage.getItem("thinktank_tone") || "";
+    toneSelect.value = savedTone;
+
     updateSearchBanner();
 }
 
@@ -1689,6 +1693,10 @@ function saveSettings() {
     if (wl > 0) localStorage.setItem("thinktank_word_limit", wl);
     else localStorage.removeItem("thinktank_word_limit");
 
+    const tone = toneSelect.value;
+    if (tone) localStorage.setItem("thinktank_tone", tone);
+    else localStorage.removeItem("thinktank_tone");
+
     settingsNotice.textContent = "Settings saved to this browser.";
     settingsNotice.className = "settings-notice ok";
     updateSearchBanner();
@@ -1700,9 +1708,11 @@ function clearSettings() {
     localStorage.removeItem(`thinktank_api_key_${providerKey}`);
     localStorage.removeItem(STORAGE_KEY_BRAVE);
     localStorage.removeItem("thinktank_word_limit");
+    localStorage.removeItem("thinktank_tone");
     apiKeyProvider.value = "";
     apiKeyBrave.value = "";
     wordLimitInput.value = "";
+    toneSelect.value = "";
     settingsNotice.textContent = "Keys cleared for " + (allProviders.find((p) => p.key === providerKey)?.name || providerKey) + ".";
     settingsNotice.className = "settings-notice warn";
     updateSearchBanner();
@@ -1716,6 +1726,7 @@ function getApiKeys() {
         api_key: apiKeyProvider.value.trim(),
         brave_api_key: apiKeyBrave.value.trim(),
         word_limit: parseInt(wordLimitInput.value) || 0,
+        tone: toneSelect.value || "",
     };
 }
 

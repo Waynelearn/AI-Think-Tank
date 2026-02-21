@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 19 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=5">
+    <link rel="stylesheet" href="/static/style.css?v=6">
     <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
@@ -51,6 +51,18 @@
                 <div class="settings-row">
                     <label for="word-limit">Word Limit</label>
                     <input type="number" id="word-limit" min="0" max="5000" step="50" placeholder="0 = no limit" autocomplete="off">
+                </div>
+                <div class="settings-row">
+                    <label for="tone-select">Tone</label>
+                    <select id="tone-select">
+                        <option value="">Default</option>
+                        <option value="layman">Layman (Simple &amp; Clear)</option>
+                        <option value="academic">Academic (Scholarly)</option>
+                        <option value="professional">Professional (Business)</option>
+                        <option value="debate">Debate (Confrontational)</option>
+                        <option value="storyteller">Storyteller (Narrative)</option>
+                        <option value="socratic">Socratic (Questions-Led)</option>
+                    </select>
                 </div>
                 <div class="settings-actions">
                     <button id="settings-save" class="settings-btn">Save</button>
@@ -153,7 +165,7 @@
         </div>
     </div>
 
-    <script src="/static/utils.js?v=5"></script>
-    <script src="/static/app.js?v=5"></script>
+    <script src="/static/utils.js?v=6"></script>
+    <script src="/static/app.js?v=6"></script>
 </body>
 </html>

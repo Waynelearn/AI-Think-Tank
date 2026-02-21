@@ -145,8 +145,10 @@ class DiscussionEngine:
                                  continue_from: str = ""):
         """Stream a single agent's response."""
         word_limit = int((api_keys or {}).get("word_limit", 0))
+        tone = (api_keys or {}).get("tone", "")
         messages = self._build_messages(discussion, topic, round_num, file_context,
-                                        word_limit=word_limit, continue_from=continue_from,
+                                        word_limit=word_limit, tone=tone,
+                                        continue_from=continue_from,
                                         continue_agent=agent.name if continue_from else "")
 
         await self._send(websocket, {
@@ -380,9 +382,44 @@ class DiscussionEngine:
                 "round": round_num,
             })
 
+    TONE_INSTRUCTIONS = {
+        "layman": (
+            "TONE: Speak in plain, everyday language. No jargon, no technical terms, no acronyms. "
+            "Explain things like you're talking to a smart friend who has no background in this field. "
+            "Use short sentences, concrete examples, and analogies from daily life. "
+            "If you must mention a technical concept, immediately explain it in simple words."
+        ),
+        "academic": (
+            "TONE: Write in a formal, scholarly style. Use precise technical terminology and discipline-specific "
+            "language. Structure your arguments rigorously with clear thesis statements, supporting evidence, "
+            "and citations where applicable. Maintain an objective, analytical voice."
+        ),
+        "professional": (
+            "TONE: Write in a crisp, business-professional style. Be direct and action-oriented. "
+            "Use industry terms when helpful but keep language accessible to executives. "
+            "Focus on implications, trade-offs, and actionable takeaways. No fluff."
+        ),
+        "debate": (
+            "TONE: Be sharp, confrontational, and rhetorically aggressive. Challenge other panelists directly. "
+            "Poke holes in their arguments. Use pointed questions and strong counter-examples. "
+            "Don't soften your disagreements — be intellectually combative while staying substantive."
+        ),
+        "storyteller": (
+            "TONE: Frame your points through stories, anecdotes, and vivid scenarios. "
+            "Paint pictures with words. Use narrative structure — setup, tension, resolution. "
+            "Make abstract ideas tangible through human-scale examples and compelling imagery."
+        ),
+        "socratic": (
+            "TONE: Lead with probing questions rather than assertions. Challenge assumptions by asking 'why' "
+            "and 'what if'. Guide the discussion through inquiry rather than declaration. "
+            "After asking questions, offer your own tentative answers to move the conversation forward."
+        ),
+    }
+
     def _build_messages(self, discussion: Discussion, topic: str,
                         current_round: int, file_context: str = "",
-                        word_limit: int = 0, continue_from: str = "",
+                        word_limit: int = 0, tone: str = "",
+                        continue_from: str = "",
                         continue_agent: str = "") -> list[dict]:
         """Build the message history for the Claude API call."""
         file_section = ""
@@ -398,6 +435,10 @@ class DiscussionEngine:
             word_limit_instruction = (
                 f"\n\nIMPORTANT: Keep your response under {word_limit} words. Be concise and focused."
             )
+
+        tone_instruction = ""
+        if tone and tone in self.TONE_INSTRUCTIONS:
+            tone_instruction = f"\n\n{self.TONE_INSTRUCTIONS[tone]}"
 
         continuation_instruction = ""
         if continue_from and continue_agent:
@@ -417,6 +458,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Please share your perspective. If you need current data or sources, "
                     f"use the web_search tool to find evidence and include links in your response."
+                    f"{tone_instruction}"
                     f"{word_limit_instruction}"
                 ),
             }]
@@ -444,6 +486,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Here is the discussion so far:\n{transcript}\n\n"
                     f"{continuation_instruction}"
+                    f"{tone_instruction}"
                     f"{word_limit_instruction}"
                 ),
             }]
@@ -458,6 +501,7 @@ class DiscussionEngine:
                 f"build on ideas you agree with, and challenge those you disagree with. "
                 f"If a user has interjected, address their input directly. "
                 f"Use the web_search tool if you need current data or sources to back up your claims."
+                f"{tone_instruction}"
                 f"{word_limit_instruction}"
             ),
         }]
