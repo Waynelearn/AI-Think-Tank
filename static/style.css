@@ -1562,6 +1562,36 @@ header h1 {
     vertical-align: middle;
 }
 
+/* ── Chart Tooltip ── */
+.chart-tooltip {
+    position: absolute;
+    z-index: 210;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-primary);
+    max-width: 280px;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    pointer-events: auto;
+}
+
+.chart-tooltip strong {
+    font-size: 13px;
+}
+
+.chart-tooltip-round {
+    color: var(--text-faint);
+    font-size: 11px;
+}
+
+.chart-tooltip-score {
+    font-weight: 700;
+    font-size: 13px;
+}
+
 /* ── Commentary Section ── */
 .sentiment-commentary {
     margin-top: 12px;

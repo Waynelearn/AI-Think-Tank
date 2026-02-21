@@ -421,6 +421,7 @@ PERSONAS = {
             "Then output ONLY valid JSON (no markdown fences, no extra text):\n"
             '{"viewpoints":[{"id":0,"label":"Short label A"},{"id":1,"label":"Short label B"}],'
             '"scores":{"Agent Name":0.6,"Another Agent":-0.3},'
+            '"reasons":{"Agent Name":"Brief reason for their stance or shift","Another Agent":"Why they hold this position"},'
             '"consensus":0.35}\n\n'
 
             "CONSENSUS FIELD (required):\n"
@@ -460,7 +461,12 @@ PERSONAS = {
             "When scoring, consider ALL of their messages in the round COMBINED — their overall stance "
             "across all their contributions, not just the first or last message.\n"
             "- Base scores on SUBSTANCE of what each panelist argued, not persona description\n"
-            "- Viewpoint labels must be concise (3-6 words each) and TOPIC-SPECIFIC"
+            "- Viewpoint labels must be concise (3-6 words each) and TOPIC-SPECIFIC\n\n"
+            "REASONS FIELD (required):\n"
+            "For EACH agent in scores, provide a short reason (1-2 sentences) explaining:\n"
+            "- Round 1: why they hold this position (cite their key argument)\n"
+            "- Round 2+: what changed vs the previous round and why, OR why they held firm. "
+            "Reference specific arguments or evidence they cited."
         ),
     },
 

@@ -2049,6 +2049,7 @@ function handleSentimentUpdate(data) {
         round: data.round,
         viewpoints: data.data.viewpoints || [],
         scores: data.data.scores || {},
+        reasons: data.data.reasons || {},
         consensus: typeof data.data.consensus === "number" ? data.data.consensus : null,
         momentum: typeof data.data.momentum === "number" ? data.data.momentum : null,
     };
@@ -2317,6 +2318,8 @@ function renderSentimentStripInPanel(latestEntry) {
     }
 }
 
+let chartHitMap = []; // [{x, y, agentName, round, score, reason}]
+
 function renderSentimentChart(history) {
     if (!history) {
         const viewed = getViewedSentimentData();
@@ -2324,6 +2327,7 @@ function renderSentimentChart(history) {
     }
     if (history.length === 0) return;
 
+    chartHitMap = [];
     const canvas = sentimentCanvas;
     const ctx = canvas.getContext("2d");
 
@@ -2490,6 +2494,11 @@ function renderSentimentChart(history) {
             ctx.textBaseline = "middle";
             ctx.fillStyle = isDark ? "#e0e0e0" : "#1a1a2e";
             ctx.fillText(emoji, x, y);
+
+            // Store hit target for click interaction
+            const roundEntry = history.find(e => e.round === p.round);
+            const reason = roundEntry?.reasons?.[agentName] || "";
+            chartHitMap.push({ x, y, agentName, round: p.round, score: p.score, reason, color, emoji });
         });
 
         ctx.globalAlpha = 1.0;
@@ -2589,6 +2598,43 @@ if (sentimentStripRoundSelect) {
         renderSentimentPanel();
     });
 }
+
+// Chart emoji click — show reason tooltip
+sentimentCanvas.addEventListener("click", (e) => {
+    const rect = sentimentCanvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const hitRadius = 18;
+    // Find closest hit target
+    let closest = null, closestDist = Infinity;
+    for (const h of chartHitMap) {
+        const dist = Math.sqrt((cx - h.x) ** 2 + (cy - h.y) ** 2);
+        if (dist < hitRadius && dist < closestDist) {
+            closest = h;
+            closestDist = dist;
+        }
+    }
+    // Remove existing tooltip
+    const existing = document.getElementById("chart-tooltip");
+    if (existing) existing.remove();
+    if (!closest) return;
+    const reason = closest.reason || `Score: ${closest.score.toFixed(1)}`;
+    const tip = document.createElement("div");
+    tip.id = "chart-tooltip";
+    tip.className = "chart-tooltip";
+    tip.innerHTML = `<strong>${closest.emoji} ${escapeHtml(closest.agentName)}</strong> <span class="chart-tooltip-round">Round ${closest.round}</span><br><span class="chart-tooltip-score" style="color:${closest.color}">Score: ${closest.score > 0 ? "+" : ""}${closest.score.toFixed(1)}</span><br>${escapeHtml(reason)}`;
+    // Position relative to chart section
+    const chartSection = sentimentCanvas.parentElement;
+    tip.style.left = `${Math.min(cx, rect.width - 220)}px`;
+    tip.style.top = `${cy + 20}px`;
+    chartSection.style.position = "relative";
+    chartSection.appendChild(tip);
+    // Auto-dismiss on click elsewhere or after 6s
+    const dismiss = () => { tip.remove(); document.removeEventListener("click", dismissOnClick); };
+    const dismissOnClick = (ev) => { if (ev.target !== sentimentCanvas) dismiss(); };
+    setTimeout(() => document.addEventListener("click", dismissOnClick), 50);
+    setTimeout(dismiss, 6000);
+});
 
 // Close panel on click outside
 sentimentPanel.addEventListener("click", (e) => {
