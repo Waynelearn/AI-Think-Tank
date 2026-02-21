@@ -28,7 +28,9 @@ const sentimentBadge = document.getElementById("sentiment-badge");
 const sentimentPanel = document.getElementById("sentiment-panel");
 const sentimentPanelClose = document.getElementById("sentiment-panel-close");
 const sentimentStripTrackPanel = document.getElementById("sentiment-strip-track-panel");
+const sentimentStripHeader = document.getElementById("sentiment-strip-header");
 const sentimentVpLabels = document.getElementById("sentiment-viewpoint-labels");
+const sentimentStripRoundSelect = document.getElementById("sentiment-strip-round-select");
 const sentimentVpLeft = document.getElementById("sentiment-vp-left");
 const sentimentVpRight = document.getElementById("sentiment-vp-right");
 const sentimentChartSection = document.getElementById("sentiment-chart-section");
@@ -38,6 +40,12 @@ const sentimentCommentary = document.getElementById("sentiment-commentary");
 const sentimentCommentaryBody = document.getElementById("sentiment-commentary-body");
 const sentimentRoundSelect = document.getElementById("sentiment-round-select");
 const sentimentEmptyState = document.getElementById("sentiment-empty-state");
+const sentimentMetrics = document.getElementById("sentiment-metrics");
+const consensusBar = document.getElementById("consensus-bar");
+const consensusValue = document.getElementById("consensus-value");
+const momentumArrowWrap = document.getElementById("momentum-arrow-wrap");
+const momentumArrow = document.getElementById("momentum-arrow");
+const momentumValue = document.getElementById("momentum-value");
 const sentimentSessionSelect = document.getElementById("sentiment-session-select");
 const viewpointAInput = document.getElementById("viewpoint-a");
 const viewpointBInput = document.getElementById("viewpoint-b");
@@ -827,9 +835,10 @@ function resumeSession(session) {
     viewpointBInput.value = "";
     if (sentimentEmptyState) sentimentEmptyState.style.display = "block";
     if (sentimentChartSection) sentimentChartSection.style.display = "none";
-    if (sentimentVpLabels) sentimentVpLabels.style.display = "none";
+    if (sentimentStripHeader) sentimentStripHeader.style.display = "none";
     if (sentimentStripTrackPanel) sentimentStripTrackPanel.style.display = "none";
     if (sentimentCommentary) sentimentCommentary.style.display = "none";
+    if (sentimentMetrics) sentimentMetrics.style.display = "none";
 
     // Now load this session's sentiment data from localStorage
     const savedSentiment = loadSentimentData(persistentSessionId);
@@ -908,9 +917,10 @@ function newChat() {
     sentimentLegend.innerHTML = "";
     if (sentimentEmptyState) sentimentEmptyState.style.display = "block";
     if (sentimentChartSection) sentimentChartSection.style.display = "none";
-    if (sentimentVpLabels) sentimentVpLabels.style.display = "none";
+    if (sentimentStripHeader) sentimentStripHeader.style.display = "none";
     if (sentimentStripTrackPanel) sentimentStripTrackPanel.style.display = "none";
     if (sentimentCommentary) sentimentCommentary.style.display = "none";
+    if (sentimentMetrics) sentimentMetrics.style.display = "none";
     viewpointAInput.value = "";
     viewpointBInput.value = "";
 
@@ -2023,6 +2033,8 @@ function handleSentimentUpdate(data) {
         round: data.round,
         viewpoints: data.data.viewpoints || [],
         scores: data.data.scores || {},
+        consensus: typeof data.data.consensus === "number" ? data.data.consensus : null,
+        momentum: typeof data.data.momentum === "number" ? data.data.momentum : null,
     };
     sentimentHistory.push(entry);
 
@@ -2083,10 +2095,11 @@ function renderSentimentPanel() {
     if (!history.length) {
         // Show empty state, hide data sections
         sentimentEmptyState.style.display = "block";
-        sentimentVpLabels.style.display = "none";
+        if (sentimentStripHeader) sentimentStripHeader.style.display = "none";
         sentimentStripTrackPanel.style.display = "none";
         sentimentChartSection.style.display = "none";
         sentimentCommentary.style.display = "none";
+        if (sentimentMetrics) sentimentMetrics.style.display = "none";
         sentimentLegend.innerHTML = "";
         // Viewpoint inputs: editable only for active session
         viewpointAInput.disabled = !isActiveSession;
@@ -2096,14 +2109,37 @@ function renderSentimentPanel() {
 
     // Show data sections, hide empty state
     sentimentEmptyState.style.display = "none";
-    sentimentVpLabels.style.display = "flex";
+    if (sentimentStripHeader) sentimentStripHeader.style.display = "flex";
     sentimentStripTrackPanel.style.display = "block";
     sentimentChartSection.style.display = "block";
 
     const latest = history[history.length - 1];
 
-    // Update viewpoint labels
-    const vps = latest.viewpoints;
+    // Populate strip round selector
+
+    if (sentimentStripRoundSelect) {
+        const prevVal = sentimentStripRoundSelect.value;
+        sentimentStripRoundSelect.innerHTML = "";
+        history.forEach(entry => {
+            const opt = document.createElement("option");
+            opt.value = entry.round;
+            opt.textContent = `Round ${entry.round}`;
+            sentimentStripRoundSelect.appendChild(opt);
+        });
+        // Default to latest round, or preserve previous selection
+        if (prevVal && history.some(e => String(e.round) === prevVal)) {
+            sentimentStripRoundSelect.value = prevVal;
+        } else {
+            sentimentStripRoundSelect.value = latest.round;
+        }
+    }
+
+    // Get the selected round's entry for strip and metrics
+    const selectedStripRound = sentimentStripRoundSelect ? sentimentStripRoundSelect.value : latest.round;
+    const selectedEntry = history.find(e => String(e.round) === String(selectedStripRound)) || latest;
+
+    // Update viewpoint labels from selected round
+    const vps = selectedEntry.viewpoints;
     sentimentVpRight.textContent = vps[0]?.label || "Viewpoint A";
     sentimentVpLeft.textContent = vps.length > 1 ? vps[1].label : "";
 
@@ -2115,8 +2151,50 @@ function renderSentimentPanel() {
         viewpointBInput.value = vps[1]?.label || "";
     }
 
-    // Render inline strip with emojis
-    renderSentimentStripInPanel(latest);
+    // Render consensus & momentum metrics for selected round
+    if (sentimentMetrics) {
+        const hasConsensus = selectedEntry.consensus !== null && selectedEntry.consensus !== undefined;
+        sentimentMetrics.style.display = hasConsensus ? "flex" : "none";
+        if (hasConsensus) {
+            const consPct = Math.round(selectedEntry.consensus * 100);
+            consensusBar.style.width = `${consPct}%`;
+            if (consPct < 50) {
+                consensusBar.style.background = `linear-gradient(90deg, #e74c3c, #f39c12)`;
+            } else {
+                consensusBar.style.background = `linear-gradient(90deg, #f39c12, #27ae60)`;
+            }
+            consensusValue.textContent = `${consPct}%`;
+
+            const mom = selectedEntry.momentum;
+            if (mom !== null && mom !== undefined && selectedEntry.round > 1) {
+                const momPct = Math.round(Math.abs(mom) * 100);
+                if (mom > 0.02) {
+                    momentumArrow.textContent = "\u25B2";
+                    momentumArrow.className = "sentiment-metric-arrow momentum-up";
+                    momentumValue.textContent = `+${momPct}%`;
+                    momentumValue.className = "sentiment-metric-value momentum-up";
+                } else if (mom < -0.02) {
+                    momentumArrow.textContent = "\u25BC";
+                    momentumArrow.className = "sentiment-metric-arrow momentum-down";
+                    momentumValue.textContent = `-${momPct}%`;
+                    momentumValue.className = "sentiment-metric-value momentum-down";
+                } else {
+                    momentumArrow.textContent = "\u25C6";
+                    momentumArrow.className = "sentiment-metric-arrow momentum-flat";
+                    momentumValue.textContent = "Stable";
+                    momentumValue.className = "sentiment-metric-value momentum-flat";
+                }
+            } else {
+                momentumArrow.textContent = "—";
+                momentumArrow.className = "sentiment-metric-arrow";
+                momentumValue.textContent = "N/A";
+                momentumValue.className = "sentiment-metric-value";
+            }
+        }
+    }
+
+    // Render inline strip with emojis for selected round
+    renderSentimentStripInPanel(selectedEntry);
 
     // Render chart
     renderSentimentChart(history);
@@ -2435,6 +2513,13 @@ sentimentSessionSelect.addEventListener("change", () => {
     sentimentViewSessionId = sentimentSessionSelect.value;
     renderSentimentPanel();
 });
+
+// Strip round selector — update strip and metrics without redrawing chart
+if (sentimentStripRoundSelect) {
+    sentimentStripRoundSelect.addEventListener("change", () => {
+        renderSentimentPanel();
+    });
+}
 
 // Close panel on click outside
 sentimentPanel.addEventListener("click", (e) => {

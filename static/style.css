@@ -1110,6 +1110,14 @@ header h1 {
     .viewpoint-inputs input { font-size: 14px; padding: 5px 8px; }
     .viewpoint-vs { display: none; }
     .viewpoint-hint { font-size: 9px; }
+    .sentiment-metrics { gap: 12px; padding: 6px 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .sentiment-metric { gap: 4px; }
+    .sentiment-metric-label { font-size: 10px; }
+    .sentiment-metric-value { font-size: 11px; min-width: 32px; }
+    .sentiment-metric-bar-wrap { min-width: 40px; }
+    .sentiment-metric-arrow { font-size: 14px; }
+    .sentiment-strip-header { gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+    .sentiment-strip-header .sentiment-round-select { font-size: 11px; padding: 2px 4px; }
     .sentiment-viewpoint-labels { font-size: 10px; padding: 0 2px; margin-bottom: 4px; }
     .sentiment-vp-left,
     .sentiment-vp-right { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1277,6 +1285,96 @@ header h1 {
     color: var(--text-faint);
     display: block;
     margin-top: 4px;
+}
+
+/* ── Consensus Metrics ── */
+.sentiment-metrics {
+    display: flex;
+    gap: 24px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+    border-radius: 8px;
+    align-items: center;
+}
+
+.sentiment-metric {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.sentiment-metric-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.sentiment-metric-bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-page);
+    border-radius: 4px;
+    border: 1px solid var(--border-muted);
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.sentiment-metric-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+}
+
+.sentiment-metric-value {
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: right;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+.sentiment-metric-value.momentum-up { color: var(--accent-green); }
+.sentiment-metric-value.momentum-down { color: var(--accent-red); }
+.sentiment-metric-value.momentum-flat { color: var(--text-faint); }
+
+.sentiment-metric-arrow-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sentiment-metric-arrow {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.sentiment-metric-arrow.momentum-up { color: var(--accent-green); }
+.sentiment-metric-arrow.momentum-down { color: var(--accent-red); }
+.sentiment-metric-arrow.momentum-flat { color: var(--text-faint); }
+
+/* ── Strip Header (viewpoint labels + round selector) ── */
+.sentiment-strip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.sentiment-strip-header .sentiment-viewpoint-labels {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.sentiment-strip-header .sentiment-round-select {
+    flex-shrink: 0;
 }
 
 /* ── Viewpoint Labels ── */

@@ -397,12 +397,22 @@ PERSONAS = {
             "YOUR RESPONSE MUST HAVE EXACTLY TWO PARTS:\n\n"
 
             "═══ PART 1: CHAT COMMENTARY (for the audience) ═══\n"
-            "Write 2-4 concise paragraphs covering:\n"
+            "Write your analysis in these sections:\n\n"
+            "**Viewpoint Analysis**\n"
+            "2-4 concise paragraphs covering:\n"
             "• The two main opposing viewpoints on the TOPIC (not meta-discussion)\n"
             "• Where each panelist stands and why (cite specific arguments they made)\n"
             "• If this is round 2+, highlight WHO shifted position and in which direction\n"
             "• Notable alliances, outliers, or surprising alignments\n"
-            "• Use panelist names directly (e.g., 'Dr. Nova argues...')\n"
+            "• Use panelist names directly (e.g., 'Dr. Nova argues...')\n\n"
+            "**Common Ground**\n"
+            "A short section (1-2 paragraphs) identifying the points that most or all panelists "
+            "agree on — the shared assumptions, undeniable truths, or areas where positions overlap "
+            "despite their differences. Be specific: quote or reference actual arguments. "
+            "If there is genuinely no common ground, say so explicitly and explain why.\n\n"
+            "**Consensus Meter**\n"
+            "One sentence summarizing the overall level of agreement and whether the group is "
+            "moving toward or away from consensus compared to the previous round (if applicable).\n\n"
             "Keep it engaging and insightful — you are presenting analysis to an audience.\n\n"
 
             "═══ PART 2: STRUCTURED DATA (for the chart system) ═══\n"
@@ -410,7 +420,25 @@ PERSONAS = {
             "---SENTIMENT_DATA---\n"
             "Then output ONLY valid JSON (no markdown fences, no extra text):\n"
             '{"viewpoints":[{"id":0,"label":"Short label A"},{"id":1,"label":"Short label B"}],'
-            '"scores":{"Agent Name":0.6,"Another Agent":-0.3}}\n\n'
+            '"scores":{"Agent Name":0.6,"Another Agent":-0.3},'
+            '"consensus":0.35,"momentum":0.1}\n\n'
+
+            "CONSENSUS FIELD (required):\n"
+            "A number from 0.0 to 1.0 measuring how much overall agreement exists this round:\n"
+            "- 1.0 = complete unanimity (all panelists aligned)\n"
+            "- 0.0 = total polarization (panelists evenly split at extremes)\n"
+            "- Calculate by looking at how tightly clustered the individual scores are. "
+            "If all scores are near each other (regardless of direction), consensus is high. "
+            "If scores are spread across the -1 to +1 range, consensus is low.\n\n"
+
+            "MOMENTUM FIELD (required):\n"
+            "A number from -1.0 to +1.0 measuring the rate of change of consensus:\n"
+            "- Positive = the group is converging (consensus increasing vs previous round)\n"
+            "- Negative = the group is diverging (consensus decreasing vs previous round)\n"
+            "- 0.0 = no change or first round\n"
+            "- For round 1, ALWAYS set momentum to 0 (there is no previous round to compare).\n"
+            "- For round 2+, compare the current consensus to the previous round's consensus. "
+            "The magnitude reflects how rapidly positions are converging or diverging.\n\n"
 
             "CRITICAL — VIEWPOINT SELECTION:\n"
             "Viewpoints MUST be about the actual subject matter — the real-world policy, strategy, "

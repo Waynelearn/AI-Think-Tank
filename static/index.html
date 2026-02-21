@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 20 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=12">
+    <link rel="stylesheet" href="/static/style.css?v=13">
     <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
@@ -137,11 +137,31 @@
                     </div>
                     <span class="viewpoint-hint">Leave blank to auto-detect from Round 1</span>
                 </div>
+                <!-- Consensus metrics -->
+                <div class="sentiment-metrics" id="sentiment-metrics" style="display:none;">
+                    <div class="sentiment-metric">
+                        <span class="sentiment-metric-label">Consensus Index</span>
+                        <div class="sentiment-metric-bar-wrap">
+                            <div class="sentiment-metric-bar" id="consensus-bar" style="width:0%"></div>
+                        </div>
+                        <span class="sentiment-metric-value" id="consensus-value">—</span>
+                    </div>
+                    <div class="sentiment-metric">
+                        <span class="sentiment-metric-label">Momentum</span>
+                        <div class="sentiment-metric-arrow-wrap" id="momentum-arrow-wrap">
+                            <span class="sentiment-metric-arrow" id="momentum-arrow"></span>
+                        </div>
+                        <span class="sentiment-metric-value" id="momentum-value">—</span>
+                    </div>
+                </div>
                 <!-- Spectrum strip -->
-                <div class="sentiment-viewpoint-labels" id="sentiment-viewpoint-labels" style="display:none;">
-                    <span class="sentiment-vp-left" id="sentiment-vp-left"></span>
-                    <span class="sentiment-vp-center">Neutral</span>
-                    <span class="sentiment-vp-right" id="sentiment-vp-right"></span>
+                <div class="sentiment-strip-header" id="sentiment-strip-header" style="display:none;">
+                    <div class="sentiment-viewpoint-labels" id="sentiment-viewpoint-labels">
+                        <span class="sentiment-vp-left" id="sentiment-vp-left"></span>
+                        <span class="sentiment-vp-center">Neutral</span>
+                        <span class="sentiment-vp-right" id="sentiment-vp-right"></span>
+                    </div>
+                    <select id="sentiment-strip-round-select" class="sentiment-round-select" aria-label="Select round for spectrum"></select>
                 </div>
                 <div class="sentiment-strip-inline" id="sentiment-strip-track-panel" style="display:none;"></div>
                 <!-- Time-series chart -->
@@ -192,7 +212,7 @@
         </div>
     </div>
 
-    <script src="/static/utils.js?v=12"></script>
-    <script src="/static/app.js?v=12"></script>
+    <script src="/static/utils.js?v=13"></script>
+    <script src="/static/app.js?v=13"></script>
 </body>
 </html>
