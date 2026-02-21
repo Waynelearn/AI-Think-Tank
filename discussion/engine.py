@@ -486,6 +486,24 @@ class DiscussionEngine:
 
         transcript = discussion.get_transcript()
 
+        # Extract The Judge's latest verdict to inject as priority instruction
+        judge_instruction = ""
+        if current_round > 1 and agent_key not in ("the_judge", "sentiment_analyst"):
+            judge_message = None
+            for m in reversed(discussion.messages):
+                if m.agent_name == "The Judge":
+                    judge_message = m.content
+                    break
+            if judge_message:
+                judge_instruction = (
+                    "\n\n═══ THE JUDGE'S LATEST VERDICT ═══\n"
+                    f"{judge_message}\n"
+                    "═══ END VERDICT ═══\n"
+                    "You MUST address The Judge's feedback in your response. "
+                    "If The Judge called you out by name, follow their specific directive. "
+                    "If The Judge identified blind spots or demanded new angles, explore them."
+                )
+
         if continuation_instruction:
             return [{
                 "role": "user",
@@ -493,6 +511,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Here is the discussion so far:\n{transcript}\n\n"
                     f"{continuation_instruction}"
+                    f"{judge_instruction}"
                     f"{viewpoint_instruction}"
                     f"{tone_instruction}"
                     f"{word_limit_instruction}"
@@ -504,7 +523,8 @@ class DiscussionEngine:
             "content": (
                 f"The discussion topic is: {topic}{file_section}\n\n"
                 f"Here is the discussion so far:\n{transcript}\n\n"
-                f"{user_instruction}\n\n"
+                f"{user_instruction}"
+                f"{judge_instruction}\n\n"
                 f"This is round {current_round}. Respond to the other panelists' points, "
                 f"build on ideas you agree with, and challenge those you disagree with. "
                 f"If a user has interjected, address their input directly. "
