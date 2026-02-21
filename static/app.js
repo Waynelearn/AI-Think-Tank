@@ -1654,13 +1654,16 @@ function finishMessage(agentNameFromEvent) {
     const content = currentMessageEl.querySelector(".message-content");
     let rawText = content.textContent;
 
-    // Strip ---SENTIMENT_DATA--- block from Sentiment Analyst's chat display
+    // Strip ---SENTIMENT_DATA--- block and prompt headers from Sentiment Analyst's chat display
     const sentimentDelimiter = "---SENTIMENT_DATA---";
     let commentary = rawText;
     if (rawText.includes(sentimentDelimiter)) {
         commentary = rawText.split(sentimentDelimiter)[0].trim();
-        rawText = commentary; // Show only the commentary in chat
+        rawText = commentary;
     }
+    // Strip any leaked prompt section headers (e.g., "═══ PART 1: CHAT COMMENTARY ═══")
+    rawText = rawText.replace(/[═]{2,}\s*PART\s*\d+[^═]*[═]{2,}/g, "").trim();
+    commentary = commentary.replace(/[═]{2,}\s*PART\s*\d+[^═]*[═]{2,}/g, "").trim();
 
     content.innerHTML = renderMarkdown(rawText);
 
