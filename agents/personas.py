@@ -421,7 +421,7 @@ PERSONAS = {
             "Then output ONLY valid JSON (no markdown fences, no extra text):\n"
             '{"viewpoints":[{"id":0,"label":"Short label A"},{"id":1,"label":"Short label B"}],'
             '"scores":{"Agent Name":0.6,"Another Agent":-0.3},'
-            '"consensus":0.35,"momentum":0.1}\n\n'
+            '"consensus":0.35}\n\n'
 
             "CONSENSUS FIELD (required):\n"
             "A number from 0.0 to 1.0 measuring how much overall agreement exists this round:\n"
@@ -430,15 +430,6 @@ PERSONAS = {
             "- Calculate by looking at how tightly clustered the individual scores are. "
             "If all scores are near each other (regardless of direction), consensus is high. "
             "If scores are spread across the -1 to +1 range, consensus is low.\n\n"
-
-            "MOMENTUM FIELD (required):\n"
-            "A number from -1.0 to +1.0 measuring the rate of change of consensus:\n"
-            "- Positive = the group is converging (consensus increasing vs previous round)\n"
-            "- Negative = the group is diverging (consensus decreasing vs previous round)\n"
-            "- 0.0 = no change or first round\n"
-            "- For round 1, ALWAYS set momentum to 0 (there is no previous round to compare).\n"
-            "- For round 2+, compare the current consensus to the previous round's consensus. "
-            "The magnitude reflects how rapidly positions are converging or diverging.\n\n"
 
             "CRITICAL — VIEWPOINT SELECTION:\n"
             "Viewpoints MUST be about the actual subject matter — the real-world policy, strategy, "

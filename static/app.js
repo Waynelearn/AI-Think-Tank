@@ -2182,24 +2182,36 @@ function renderSentimentPanel() {
             }
             consensusValue.textContent = `${consPct}%`;
 
-            const mom = selectedEntry.momentum;
-            if (mom !== null && mom !== undefined && selectedEntry.round > 1) {
-                const momPct = Math.round(Math.abs(mom) * 100);
-                if (mom > 0.02) {
+            // Compute Shift: average absolute score change per agent vs previous round
+            const prevEntry = history.find(e => e.round === selectedEntry.round - 1);
+            if (prevEntry && prevEntry.scores && selectedEntry.scores) {
+                const prevScores = prevEntry.scores;
+                const curScores = selectedEntry.scores;
+                let totalShift = 0, count = 0;
+                for (const name of Object.keys(curScores)) {
+                    if (name in prevScores) {
+                        totalShift += Math.abs(curScores[name] - prevScores[name]);
+                        count++;
+                    }
+                }
+                const avgShift = count > 0 ? totalShift / count : 0;
+                // Scale: 0 = no movement, 2 = max possible (every agent flipped -1 to +1)
+                const shiftPct = Math.round((avgShift / 2) * 100);
+                if (shiftPct >= 15) {
                     momentumArrow.textContent = "\u25B2";
                     momentumArrow.className = "sentiment-metric-arrow momentum-up";
-                    momentumValue.textContent = `+${momPct}%`;
+                    momentumValue.textContent = `${shiftPct}%`;
                     momentumValue.className = "sentiment-metric-value momentum-up";
-                } else if (mom < -0.02) {
-                    momentumArrow.textContent = "\u25BC";
-                    momentumArrow.className = "sentiment-metric-arrow momentum-down";
-                    momentumValue.textContent = `-${momPct}%`;
-                    momentumValue.className = "sentiment-metric-value momentum-down";
-                } else {
+                } else if (shiftPct >= 5) {
                     momentumArrow.textContent = "\u25C6";
                     momentumArrow.className = "sentiment-metric-arrow momentum-flat";
-                    momentumValue.textContent = "Stable";
+                    momentumValue.textContent = `${shiftPct}%`;
                     momentumValue.className = "sentiment-metric-value momentum-flat";
+                } else {
+                    momentumArrow.textContent = "\u25CF";
+                    momentumArrow.className = "sentiment-metric-arrow momentum-down";
+                    momentumValue.textContent = "Stable";
+                    momentumValue.className = "sentiment-metric-value momentum-down";
                 }
             } else {
                 momentumArrow.textContent = "—";
