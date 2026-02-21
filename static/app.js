@@ -30,6 +30,7 @@ const providerSelect = document.getElementById("provider-select");
 const modelSelect = document.getElementById("model-select");
 const apiKeyProvider = document.getElementById("api-key-provider");
 const apiKeyBrave = document.getElementById("api-key-brave");
+const wordLimitInput = document.getElementById("word-limit");
 const settingsSave = document.getElementById("settings-save");
 const settingsClear = document.getElementById("settings-clear");
 const settingsNotice = document.getElementById("settings-notice");
@@ -94,6 +95,9 @@ let dragSrcIndex = null;
 
 // Agent response timing
 let agentStartTime = null;
+
+// Currently speaking agent (null when idle) — for incomplete response detection
+let currentSpeakingAgent = null; // {key, name, avatar, color}
 
 // Save debounce timer
 let saveDebounceTimer = null;
@@ -325,6 +329,7 @@ function clearAllSpeaking() {
 
 function populateAddSelect() {
     addAgentSelect.innerHTML = '<option value="">+ Add agent...</option>';
+    addAgentSelect.innerHTML += '<option value="__user_prompt__">&#128100; Your Prompt</option>';
     allAgents.forEach((a) => {
         addAgentSelect.innerHTML += `<option value="${a.key}">${a.avatar} ${a.name}</option>`;
     });
@@ -338,15 +343,22 @@ function buildQueueFromSelection() {
         const a = allAgents.find((x) => x.key === k);
         return a && a.name === "The Mediator";
     });
-    const others = keys.filter((k) => k !== mediatorKey);
+    const judgeKey = keys.find((k) => {
+        const a = allAgents.find((x) => x.key === k);
+        return a && a.name === "The Judge";
+    });
+    const others = keys.filter((k) => k !== mediatorKey && k !== judgeKey);
 
-    // Shuffle non-mediator agents randomly
+    // Shuffle non-mediator/non-judge agents randomly
     for (let i = others.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [others[i], others[j]] = [others[j], others[i]];
     }
 
-    const ordered = mediatorKey ? [...others, mediatorKey] : others;
+    // Order: shuffled agents → Mediator → Judge (both at the end)
+    const ordered = [...others];
+    if (mediatorKey) ordered.push(mediatorKey);
+    if (judgeKey) ordered.push(judgeKey);
 
     queue = ordered.map((k) => {
         const a = allAgents.find((x) => x.key === k);
@@ -356,21 +368,31 @@ function buildQueueFromSelection() {
 }
 
 function shuffleQueue() {
-    // Separate mediator from others
-    const mediatorIdx = queue.findIndex((q) => q.name === "The Mediator");
-    let mediator = null;
-    const others = [...queue];
-    if (mediatorIdx !== -1) {
-        mediator = others.splice(mediatorIdx, 1)[0];
+    // Separate pinned-to-end agents (Mediator, Judge) from others
+    const pinned = [];
+    const others = [];
+    for (const q of queue) {
+        if (q.name === "The Mediator" || q.name === "The Judge") {
+            pinned.push(q);
+        } else {
+            others.push(q);
+        }
     }
 
-    // Fisher-Yates shuffle
+    // Fisher-Yates shuffle the non-pinned items
     for (let i = others.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [others[i], others[j]] = [others[j], others[i]];
     }
 
-    queue = mediator ? [...others, mediator] : others;
+    // Mediator before Judge in pinned
+    pinned.sort((a, b) => {
+        if (a.name === "The Mediator") return -1;
+        if (b.name === "The Mediator") return 1;
+        return 0;
+    });
+
+    queue = [...others, ...pinned];
     renderQueue();
 }
 
@@ -378,18 +400,25 @@ function renderQueue() {
     queueList.innerHTML = "";
     queue.forEach((item, i) => {
         const el = document.createElement("div");
-        el.className = "queue-item";
+        el.className = "queue-item" + (item.type === "user_prompt" ? " queue-item-user" : "");
         el.draggable = true;
         el.dataset.index = i;
         el.style.setProperty("--q-color", item.color);
+
+        const isUserPrompt = item.type === "user_prompt";
+        const preview = isUserPrompt
+            ? escapeHtml(item.message.length > 25 ? item.message.slice(0, 25) + "..." : item.message)
+            : "";
+
         el.innerHTML = `
             <span class="q-handle" title="Drag to reorder">&#9776;</span>
             <span class="q-avatar">${item.avatar}</span>
-            <span class="q-name">${item.name}</span>
+            <span class="q-name${isUserPrompt ? " q-name-prompt" : ""}" ${isUserPrompt ? `title="${escapeHtml(item.message)}"` : ""}>${isUserPrompt ? preview : item.name}</span>
             <span class="q-arrows">
                 <button class="q-arrow" data-dir="up" data-i="${i}" title="Move up">&uarr;</button>
                 <button class="q-arrow" data-dir="down" data-i="${i}" title="Move down">&darr;</button>
             </span>
+            ${isUserPrompt ? `<button class="q-edit" data-i="${i}" title="Edit prompt">&#9998;</button>` : ""}
             <button class="q-remove" data-i="${i}" title="Remove from queue">&times;</button>
         `;
 
@@ -408,6 +437,19 @@ function renderQueue() {
             const dir = btn.dataset.dir;
             if (dir === "up" && idx > 0) swapQueue(idx, idx - 1);
             if (dir === "down" && idx < queue.length - 1) swapQueue(idx, idx + 1);
+        });
+    });
+    queueList.querySelectorAll(".q-edit").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.dataset.i);
+            const item = queue[idx];
+            if (!item || item.type !== "user_prompt") return;
+            const newMsg = prompt("Edit your queued message:", item.message);
+            if (newMsg !== null && newMsg.trim()) {
+                item.message = newMsg.trim();
+                renderQueue();
+            }
         });
     });
     queueList.querySelectorAll(".q-remove").forEach((btn) => {
@@ -700,6 +742,7 @@ function newChat() {
     autoRunning = false;
     isReady = false;
     currentMessageEl = null;
+    currentSpeakingAgent = null;
     lastExport = null;
     priorDiscussion = null;
     localMessages = [];
@@ -826,6 +869,7 @@ async function startSession(isResume = false) {
     ws.onmessage = (event) => handleMessage(JSON.parse(event.data));
 
     ws.onclose = () => {
+        handleIncompleteResponse();
         clearAllSpeaking();
         sessionActive = false;
         autoRunning = false;
@@ -846,7 +890,9 @@ async function startSession(isResume = false) {
     };
 
     ws.onerror = () => {
+        handleIncompleteResponse();
         showError("Connection error. Please try again.");
+        clearAllSpeaking();
         sessionActive = false;
         ws = null;
         stopHeartbeat();
@@ -862,6 +908,55 @@ async function startSession(isResume = false) {
 function sendCmd(cmd) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(cmd));
+    }
+}
+
+// ── Incomplete Response Detection ──
+
+function handleIncompleteResponse() {
+    if (!currentSpeakingAgent) return;
+
+    const agent = currentSpeakingAgent;
+    currentSpeakingAgent = null;
+
+    // Mark the partial message visually
+    if (currentMessageEl) {
+        const cursor = currentMessageEl.querySelector(".cursor");
+        if (cursor) cursor.remove();
+        const content = currentMessageEl.querySelector(".message-content");
+        const rawText = content.textContent;
+
+        // Add truncated marker
+        const marker = document.createElement("span");
+        marker.className = "incomplete-marker";
+        marker.textContent = " [response interrupted]";
+        content.appendChild(marker);
+
+        // Still save the partial response
+        localMessages.push({
+            agent_name: agent.name,
+            content: rawText + " [response interrupted]",
+            round_num: currentRound,
+            timestamp: new Date().toISOString(),
+        });
+        saveSessionMessages();
+        currentMessageEl = null;
+    }
+
+    setChipSpeaking(agent.name, false);
+    agentStartTime = null;
+
+    // Re-queue the agent at the front so they retry on reconnect
+    if (agent.key) {
+        // Remove any existing entry for this agent to avoid duplicates
+        queue = queue.filter(q => q.key !== agent.key);
+        queue.unshift({
+            key: agent.key,
+            name: agent.name,
+            avatar: agent.avatar,
+            color: agent.color,
+        });
+        renderQueue();
     }
 }
 
@@ -895,6 +990,12 @@ function handleMessage(data) {
             isReady = false;
             updateControls();
             agentStartTime = Date.now();
+            currentSpeakingAgent = {
+                key: data.agent_key || allAgents.find(a => a.name === data.agent)?.key || "",
+                name: data.agent,
+                avatar: data.avatar,
+                color: data.color,
+            };
             currentMessageEl = addAgentMessage(data.agent, data.color, data.avatar);
             setChipSpeaking(data.agent, true);
             if (queue.length && queue[0].name === data.agent) {
@@ -908,6 +1009,7 @@ function handleMessage(data) {
             break;
 
         case "agent_done":
+            currentSpeakingAgent = null;
             finishMessage(data.agent);
             setChipSpeaking(data.agent, false);
             if (data.usage) {
@@ -930,6 +1032,7 @@ function handleMessage(data) {
             break;
 
         case "discussion_end":
+            currentSpeakingAgent = null;
             clearAllSpeaking();
             lastExport = data.export || null;
             if (lastExport) {
@@ -953,6 +1056,7 @@ function handleMessage(data) {
             break;
 
         case "error":
+            handleIncompleteResponse();
             showError(data.message);
             break;
     }
@@ -977,6 +1081,24 @@ function updateControls() {
     }
 }
 
+function processNextInQueue() {
+    if (queue.length === 0) return false;
+    const next = queue[0];
+    if (next.type === "user_prompt") {
+        // Send the queued user message, then remove from queue
+        queue.shift();
+        renderQueue();
+        sendCmd({ action: "user_message", message: next.message });
+        return true;
+    } else {
+        // Regular agent
+        isReady = false;
+        updateControls();
+        sendCmd({ action: "run_agent", agent_key: next.key });
+        return true;
+    }
+}
+
 function autoNext() {
     if (!autoRunning || !isReady || !sessionActive) return;
     if (queue.length === 0) {
@@ -984,9 +1106,7 @@ function autoNext() {
         updateControls();
         return;
     }
-    isReady = false;
-    updateControls();
-    sendCmd({ action: "run_agent", agent_key: queue[0].key });
+    processNextInQueue();
 }
 
 btnPlay.addEventListener("click", () => {
@@ -1003,9 +1123,7 @@ btnPlay.addEventListener("click", () => {
 btnNext.addEventListener("click", () => {
     if (!isReady || queue.length === 0) return;
     autoRunning = false;
-    isReady = false;
-    updateControls();
-    sendCmd({ action: "run_agent", agent_key: queue[0].key });
+    processNextInQueue();
 });
 
 btnNewRound.addEventListener("click", () => {
@@ -1042,6 +1160,23 @@ btnShuffle.addEventListener("click", () => {
 btnAddAgent.addEventListener("click", () => {
     const key = addAgentSelect.value;
     if (!key) return;
+
+    if (key === "__user_prompt__") {
+        const msg = prompt("Enter your message to queue:");
+        if (!msg || !msg.trim()) { addAgentSelect.value = ""; return; }
+        queue.push({
+            type: "user_prompt",
+            message: msg.trim(),
+            name: "You",
+            avatar: "\u{1F464}",
+            color: "#6cb4ee",
+        });
+        renderQueue();
+        addAgentSelect.value = "";
+        updateControls();
+        return;
+    }
+
     const a = allAgents.find((x) => x.key === key);
     if (!a) return;
     queue.push({ key: a.key, name: a.name, avatar: a.avatar, color: a.color });
@@ -1475,6 +1610,9 @@ function loadSavedSettings() {
     const savedBrave = localStorage.getItem(STORAGE_KEY_BRAVE) || "";
     apiKeyBrave.value = savedBrave;
 
+    const savedWordLimit = localStorage.getItem("thinktank_word_limit") || "";
+    wordLimitInput.value = savedWordLimit;
+
     updateSearchBanner();
 }
 
@@ -1492,6 +1630,10 @@ function saveSettings() {
     if (bk) localStorage.setItem(STORAGE_KEY_BRAVE, bk);
     else localStorage.removeItem(STORAGE_KEY_BRAVE);
 
+    const wl = parseInt(wordLimitInput.value) || 0;
+    if (wl > 0) localStorage.setItem("thinktank_word_limit", wl);
+    else localStorage.removeItem("thinktank_word_limit");
+
     settingsNotice.textContent = "Settings saved to this browser.";
     settingsNotice.className = "settings-notice ok";
     updateSearchBanner();
@@ -1502,8 +1644,10 @@ function clearSettings() {
     const providerKey = providerSelect.value;
     localStorage.removeItem(`thinktank_api_key_${providerKey}`);
     localStorage.removeItem(STORAGE_KEY_BRAVE);
+    localStorage.removeItem("thinktank_word_limit");
     apiKeyProvider.value = "";
     apiKeyBrave.value = "";
+    wordLimitInput.value = "";
     settingsNotice.textContent = "Keys cleared for " + (allProviders.find((p) => p.key === providerKey)?.name || providerKey) + ".";
     settingsNotice.className = "settings-notice warn";
     updateSearchBanner();
@@ -1516,6 +1660,7 @@ function getApiKeys() {
         model: modelSelect.value,
         api_key: apiKeyProvider.value.trim(),
         brave_api_key: apiKeyBrave.value.trim(),
+        word_limit: parseInt(wordLimitInput.value) || 0,
     };
 }
 

@@ -423,6 +423,14 @@ header h1 {
 
 .msg-link:hover { text-decoration: underline; }
 
+/* ── Incomplete Response Marker ── */
+.incomplete-marker {
+    color: var(--accent-orange);
+    font-style: italic;
+    font-size: 12px;
+    opacity: 0.85;
+}
+
 /* ── Cursor ── */
 .cursor {
     display: inline-block;
@@ -508,6 +516,11 @@ header h1 {
 .queue-item.dragging { opacity: 0.4; }
 .queue-item.drag-over { background: var(--bg-drag-over); box-shadow: 0 0 0 1px var(--accent-blue); }
 
+.queue-item-user {
+    background: var(--bg-user-msg);
+    border-left-color: var(--accent-sky);
+}
+
 .q-handle {
     color: var(--text-very-faint);
     font-size: 11px;
@@ -516,6 +529,19 @@ header h1 {
 
 .q-avatar { font-size: 12px; }
 .q-name { flex: 1; color: var(--text-secondary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-name-prompt { font-style: italic; color: var(--accent-sky); }
+
+.q-edit {
+    background: none;
+    border: none;
+    color: var(--text-very-faint);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+.q-edit:hover { color: var(--accent-blue); }
 
 .q-arrows {
     display: flex;

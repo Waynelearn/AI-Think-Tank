@@ -121,7 +121,8 @@ class DiscussionEngine:
                                  topic: str, round_num: int, file_context: str,
                                  api_keys: dict | None = None, session_id: str = ""):
         """Stream a single agent's response."""
-        messages = self._build_messages(discussion, topic, round_num, file_context)
+        word_limit = int((api_keys or {}).get("word_limit", 0))
+        messages = self._build_messages(discussion, topic, round_num, file_context, word_limit=word_limit)
 
         await self._send(websocket, {
             "type": "agent_start",
@@ -211,7 +212,8 @@ class DiscussionEngine:
             })
 
     def _build_messages(self, discussion: Discussion, topic: str,
-                        current_round: int, file_context: str = "") -> list[dict]:
+                        current_round: int, file_context: str = "",
+                        word_limit: int = 0) -> list[dict]:
         """Build the message history for the Claude API call."""
         file_section = ""
         if file_context:
@@ -221,6 +223,12 @@ class DiscussionEngine:
                 f"Use these materials as context for your analysis. Cite specific data when relevant."
             )
 
+        word_limit_instruction = ""
+        if word_limit and word_limit > 0:
+            word_limit_instruction = (
+                f"\n\nIMPORTANT: Keep your response under {word_limit} words. Be concise and focused."
+            )
+
         if not discussion.messages:
             return [{
                 "role": "user",
@@ -228,6 +236,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Please share your perspective. If you need current data or sources, "
                     f"use the web_search tool to find evidence and include links in your response."
+                    f"{word_limit_instruction}"
                 ),
             }]
 
@@ -256,6 +265,7 @@ class DiscussionEngine:
                 f"build on ideas you agree with, and challenge those you disagree with. "
                 f"If a user has interjected, address their input directly. "
                 f"Use the web_search tool if you need current data or sources to back up your claims."
+                f"{word_limit_instruction}"
             ),
         }]
 
