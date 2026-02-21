@@ -1702,10 +1702,12 @@ function saveSettings() {
     if (tone) localStorage.setItem("thinktank_tone", tone);
     else localStorage.removeItem("thinktank_tone");
 
-    settingsNotice.textContent = "Settings saved to this browser.";
-    settingsNotice.className = "settings-notice ok";
     updateSearchBanner();
-    setTimeout(() => { settingsNotice.textContent = ""; settingsNotice.className = "settings-notice"; }, 3000);
+
+    // Collapse the settings panel after saving
+    settingsBody.classList.remove("open");
+    settingsToggle.setAttribute("aria-expanded", false);
+    if (settingsArrow) settingsArrow.innerHTML = "&#9660;";
 }
 
 function clearSettings() {
