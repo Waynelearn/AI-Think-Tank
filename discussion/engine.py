@@ -62,8 +62,15 @@ class DiscussionEngine:
                     await self._send(websocket, {"type": "ready", "round": round_num})
                     continue
 
+                # Apply per-command overrides for live settings
+                live_keys = dict(api_keys or {})
+                if "word_limit" in cmd:
+                    live_keys["word_limit"] = cmd["word_limit"]
+                if "tone" in cmd:
+                    live_keys["tone"] = cmd["tone"]
+
                 await self._run_single_agent(websocket, agent, discussion, topic,
-                                             round_num, file_context, api_keys, session_id,
+                                             round_num, file_context, live_keys, session_id,
                                              continue_from=continue_from)
 
                 # Run curator check on the agent's response
@@ -384,35 +391,48 @@ class DiscussionEngine:
 
     TONE_INSTRUCTIONS = {
         "layman": (
-            "TONE: Speak in plain, everyday language. No jargon, no technical terms, no acronyms. "
-            "Explain things like you're talking to a smart friend who has no background in this field. "
-            "Use short sentences, concrete examples, and analogies from daily life. "
-            "If you must mention a technical concept, immediately explain it in simple words."
+            "MANDATORY TONE — LAYMAN: You MUST speak in plain, everyday language that a teenager could understand. "
+            "ABSOLUTELY NO jargon, technical terms, acronyms, or field-specific vocabulary. "
+            "If a concept has a technical name, DO NOT use it — describe it in simple words instead. "
+            "Use short sentences (under 20 words each). Use concrete, real-world examples and analogies "
+            "from daily life (cooking, sports, driving, shopping). "
+            "VIOLATION CHECK: Before finishing, re-read your response. If ANY word would confuse "
+            "someone without a college degree, replace it with a simpler word."
         ),
         "academic": (
-            "TONE: Write in a formal, scholarly style. Use precise technical terminology and discipline-specific "
-            "language. Structure your arguments rigorously with clear thesis statements, supporting evidence, "
-            "and citations where applicable. Maintain an objective, analytical voice."
+            "MANDATORY TONE — ACADEMIC: You MUST write in a formal, scholarly style throughout your entire response. "
+            "Use precise technical terminology and discipline-specific language. "
+            "Structure arguments rigorously: thesis statement, supporting evidence, counterarguments, synthesis. "
+            "Cite theoretical frameworks and established literature where applicable. "
+            "Maintain a detached, objective, analytical voice — no colloquialisms or informal phrasing."
         ),
         "professional": (
-            "TONE: Write in a crisp, business-professional style. Be direct and action-oriented. "
-            "Use industry terms when helpful but keep language accessible to executives. "
-            "Focus on implications, trade-offs, and actionable takeaways. No fluff."
+            "MANDATORY TONE — PROFESSIONAL: You MUST write in a crisp, executive-briefing style. "
+            "Be direct and action-oriented — lead with the bottom line, then support it. "
+            "Use bullet points or numbered lists for key takeaways when appropriate. "
+            "Focus on implications, trade-offs, ROI, and actionable next steps. "
+            "No filler, no hedging, no academic abstractions — every sentence must earn its place."
         ),
         "debate": (
-            "TONE: Be sharp, confrontational, and rhetorically aggressive. Challenge other panelists directly. "
-            "Poke holes in their arguments. Use pointed questions and strong counter-examples. "
-            "Don't soften your disagreements — be intellectually combative while staying substantive."
+            "MANDATORY TONE — DEBATE: You MUST be sharp, confrontational, and rhetorically aggressive. "
+            "Directly name and challenge other panelists' specific claims. Quote their words back at them. "
+            "Poke holes in their logic with pointed questions and devastating counter-examples. "
+            "DO NOT soften disagreements with phrases like 'I see your point but...' — "
+            "go straight for the weakness in their argument. Be intellectually ruthless while staying substantive."
         ),
         "storyteller": (
-            "TONE: Frame your points through stories, anecdotes, and vivid scenarios. "
-            "Paint pictures with words. Use narrative structure — setup, tension, resolution. "
-            "Make abstract ideas tangible through human-scale examples and compelling imagery."
+            "MANDATORY TONE — STORYTELLER: You MUST frame ALL your points through stories, anecdotes, and vivid scenarios. "
+            "DO NOT present arguments as abstract claims — instead, paint a picture with characters, settings, and stakes. "
+            "Use narrative structure: setup a situation, build tension around the problem, reveal the insight as resolution. "
+            "Make every abstract idea tangible through human-scale examples. "
+            "Your response should read like a compelling narrative, not an essay."
         ),
         "socratic": (
-            "TONE: Lead with probing questions rather than assertions. Challenge assumptions by asking 'why' "
-            "and 'what if'. Guide the discussion through inquiry rather than declaration. "
-            "After asking questions, offer your own tentative answers to move the conversation forward."
+            "MANDATORY TONE — SOCRATIC: You MUST lead with probing questions rather than assertions. "
+            "Start by challenging a key assumption from the discussion with a 'why' or 'what if' question. "
+            "Ask at least 2-3 genuine questions that expose hidden assumptions or unexplored angles. "
+            "After each question, offer your own tentative answer to keep the discussion moving. "
+            "Your goal is to make other panelists THINK, not to lecture them."
         ),
     }
 
@@ -433,12 +453,15 @@ class DiscussionEngine:
         word_limit_instruction = ""
         if word_limit and word_limit > 0:
             word_limit_instruction = (
-                f"\n\nIMPORTANT: Keep your response under {word_limit} words. Be concise and focused."
+                f"\n\nMANDATORY WORD LIMIT: Your response MUST be under {word_limit} words. "
+                f"This is a hard limit — not a suggestion. Count your words carefully. "
+                f"If you exceed {word_limit} words, your response will be considered a failure. "
+                f"Be concise: cut filler, merge points, and prioritize your strongest arguments."
             )
 
         tone_instruction = ""
         if tone and tone in self.TONE_INSTRUCTIONS:
-            tone_instruction = f"\n\n{self.TONE_INSTRUCTIONS[tone]}"
+            tone_instruction = f"\n\nCRITICAL INSTRUCTION — {self.TONE_INSTRUCTIONS[tone]}"
 
         continuation_instruction = ""
         if continue_from and continue_agent:

@@ -1139,7 +1139,12 @@ function processNextInQueue() {
         // Regular agent
         isReady = false;
         updateControls();
-        const cmd = { action: "run_agent", agent_key: next.key };
+        const cmd = {
+            action: "run_agent",
+            agent_key: next.key,
+            word_limit: parseInt(wordLimitInput.value) || 0,
+            tone: toneSelect.value || "",
+        };
         if (next.continue_from) cmd.continue_from = next.continue_from;
         sendCmd(cmd);
         return true;
