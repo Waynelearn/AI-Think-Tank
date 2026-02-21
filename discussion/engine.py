@@ -48,6 +48,18 @@ class DiscussionEngine:
             "round": round_num,
         })
 
+        # On reconnect, run Curator check on the last message for completeness
+        if prior_discussion and discussion.messages:
+            last_msg = discussion.messages[-1]
+            if last_msg.agent_name != "user":
+                for k, a in self.registry.agents.items():
+                    if a.name == last_msg.agent_name and k != "sentiment_analyst":
+                        await self._run_curator_check(
+                            websocket, a, discussion, topic,
+                            round_num, file_context, api_keys, session_id
+                        )
+                        break
+
         # Command loop — frontend drives the flow
         while True:
             raw = await websocket.receive_text()
