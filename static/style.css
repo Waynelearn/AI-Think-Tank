@@ -1098,12 +1098,33 @@ header h1 {
     .welcome-message { font-size: 13px; }
     .welcome-sub { font-size: 11px; }
 
-    .sentiment-panel { width: 96vw; height: 92vh; padding: 10px; }
-    .sentiment-chart-section #sentiment-canvas { height: 180px; }
-    .sentiment-legend { gap: 4px; font-size: 10px; }
+    .sentiment-panel { width: 100vw; height: 100vh; padding: 8px; border-radius: 0; }
+    .sentiment-panel-header { margin-bottom: 6px; }
+    .sentiment-panel-title { font-size: 14px; }
+    .sentiment-viewpoint-config { padding: 6px 8px; margin-bottom: 8px; }
+    .sentiment-config-label { font-size: 11px; margin-bottom: 4px; }
     .viewpoint-inputs { flex-direction: column; gap: 4px; }
+    .viewpoint-inputs input { font-size: 14px; padding: 5px 8px; }
     .viewpoint-vs { display: none; }
-    .sentiment-commentary-body { max-height: 150px; }
+    .viewpoint-hint { font-size: 9px; }
+    .sentiment-viewpoint-labels { font-size: 10px; padding: 0 2px; margin-bottom: 4px; }
+    .sentiment-vp-left,
+    .sentiment-vp-right { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sentiment-vp-center { font-size: 9px; }
+    .sentiment-strip-inline { height: 28px; margin-bottom: 8px; }
+    .sentiment-dot { font-size: 14px; }
+    .sentiment-dot:hover { transform: translate(-50%, -50%) scale(1.2); }
+    .sentiment-chart-section { min-height: 160px; }
+    .sentiment-chart-title { font-size: 11px; margin-bottom: 4px; }
+    #sentiment-canvas { min-height: 160px; }
+    .sentiment-legend { gap: 3px 8px; padding: 4px 0; }
+    .sentiment-legend-item { font-size: 10px; gap: 2px; }
+    .sentiment-legend-emoji { font-size: 12px; }
+    .sentiment-legend-line { width: 12px; height: 2px; }
+    .sentiment-commentary { margin-top: 8px; padding: 8px 10px; }
+    .sentiment-commentary-title { font-size: 11px; }
+    .sentiment-commentary-body { max-height: 120px; font-size: 12px; }
+    .sentiment-empty-state { padding: 20px 10px; font-size: 12px; }
 }
 
 /* ── Sentiment Button (header) ── */

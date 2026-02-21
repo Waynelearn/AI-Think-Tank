@@ -1980,10 +1980,11 @@ function renderSentimentChart() {
 
     const W = rect.width;
     const H = rect.height;
-    const PAD_LEFT = 55;
-    const PAD_RIGHT = 25;
-    const PAD_TOP = 30;
-    const PAD_BOTTOM = 35;
+    const isMobile = W < 500;
+    const PAD_LEFT = isMobile ? 35 : 55;
+    const PAD_RIGHT = isMobile ? 10 : 25;
+    const PAD_TOP = isMobile ? 20 : 30;
+    const PAD_BOTTOM = isMobile ? 25 : 35;
     const plotW = W - PAD_LEFT - PAD_RIGHT;
     const plotH = H - PAD_TOP - PAD_BOTTOM;
 
@@ -2008,8 +2009,9 @@ function renderSentimentChart() {
     const xPos = (round) => PAD_LEFT + ((round - minRound) / roundRange) * plotW;
     const yPos = (score) => PAD_TOP + ((1 - score) / 2) * plotH;
 
-    // Horizontal gridlines at -1, -0.5, 0, 0.5, 1
-    [-1, -0.5, 0, 0.5, 1].forEach(val => {
+    // Horizontal gridlines
+    const gridTicks = isMobile ? [-1, 0, 1] : [-1, -0.5, 0, 0.5, 1];
+    gridTicks.forEach(val => {
         const y = yPos(val);
         ctx.beginPath();
         ctx.moveTo(PAD_LEFT, y);
@@ -2029,32 +2031,35 @@ function renderSentimentChart() {
 
     // Y-axis labels
     ctx.fillStyle = isDark ? "#888" : "#666";
-    ctx.font = "12px -apple-system, sans-serif";
+    ctx.font = `${isMobile ? 10 : 12}px -apple-system, sans-serif`;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    [-1, -0.5, 0, 0.5, 1].forEach(val => {
-        ctx.fillText(val.toFixed(1), PAD_LEFT - 8, yPos(val));
+    const yTicks = isMobile ? [-1, 0, 1] : [-1, -0.5, 0, 0.5, 1];
+    yTicks.forEach(val => {
+        ctx.fillText(val.toFixed(1), PAD_LEFT - 5, yPos(val));
     });
 
     // X-axis labels (round numbers)
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     rounds.forEach(r => {
-        ctx.fillText(`R${r}`, xPos(r), H - PAD_BOTTOM + 8);
+        ctx.fillText(`R${r}`, xPos(r), H - PAD_BOTTOM + 5);
     });
 
-    // Viewpoint labels at top
-    const latestEntry = sentimentHistory[sentimentHistory.length - 1];
-    if (latestEntry.viewpoints.length >= 1) {
-        ctx.fillStyle = isDark ? "#27AE60" : "#1a8a45";
-        ctx.textAlign = "right";
-        ctx.font = "11px -apple-system, sans-serif";
-        ctx.fillText(latestEntry.viewpoints[0].label + " (+1)", W - PAD_RIGHT, 6);
-    }
-    if (latestEntry.viewpoints.length >= 2) {
-        ctx.fillStyle = isDark ? "#E74C3C" : "#c0392b";
-        ctx.textAlign = "left";
-        ctx.fillText(latestEntry.viewpoints[1].label + " (-1)", PAD_LEFT, 6);
+    // Viewpoint labels at top (skip on mobile — shown in CSS labels above)
+    if (!isMobile) {
+        const latestEntry = sentimentHistory[sentimentHistory.length - 1];
+        if (latestEntry.viewpoints.length >= 1) {
+            ctx.fillStyle = isDark ? "#27AE60" : "#1a8a45";
+            ctx.textAlign = "right";
+            ctx.font = "11px -apple-system, sans-serif";
+            ctx.fillText(latestEntry.viewpoints[0].label + " (+1)", W - PAD_RIGHT, 6);
+        }
+        if (latestEntry.viewpoints.length >= 2) {
+            ctx.fillStyle = isDark ? "#E74C3C" : "#c0392b";
+            ctx.textAlign = "left";
+            ctx.fillText(latestEntry.viewpoints[1].label + " (-1)", PAD_LEFT, 6);
+        }
     }
 
     // Compute mean score per round for outlier detection
@@ -2081,7 +2086,7 @@ function renderSentimentChart() {
 
         // Draw line
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = isMobile ? 1.5 : 2.5;
         ctx.beginPath();
         points.forEach((p, i) => {
             const x = xPos(p.round);
@@ -2099,10 +2104,11 @@ function renderSentimentChart() {
             const isOutlier = Math.abs(p.score - mean) > 0.7 || Math.abs(p.score) >= 1.0;
 
             // Outlier glow
+            const glowR = isMobile ? 11 : 16;
             if (isOutlier) {
                 ctx.beginPath();
-                ctx.arc(x, y, 16, 0, Math.PI * 2);
-                ctx.fillStyle = color + "30"; // semi-transparent
+                ctx.arc(x, y, glowR, 0, Math.PI * 2);
+                ctx.fillStyle = color + "30";
                 ctx.fill();
                 ctx.strokeStyle = color + "60";
                 ctx.lineWidth = 1.5;
@@ -2110,7 +2116,8 @@ function renderSentimentChart() {
             }
 
             // Emoji marker
-            ctx.font = "18px -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";
+            const emojiFontSize = isMobile ? 13 : 18;
+            ctx.font = `${emojiFontSize}px -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = isDark ? "#e0e0e0" : "#1a1a2e";
