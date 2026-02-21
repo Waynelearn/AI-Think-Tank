@@ -518,6 +518,23 @@ class DiscussionEngine:
                 ),
             }]
 
+        # The Judge gets a special round instruction — evaluate the discussion, don't debate
+        if agent_key == "the_judge":
+            round_instruction = (
+                f"This is round {current_round}. Evaluate the panelists' contributions in THIS round. "
+                f"Do NOT refer to your own previous verdicts as if they are another panelist's opinion. "
+                f"Do NOT say 'The Judge is right' or agree with yourself. "
+                f"Focus on what the OTHER panelists said and whether the discussion quality has improved. "
+                f"If a user has interjected, address their input directly."
+            )
+        else:
+            round_instruction = (
+                f"This is round {current_round}. Respond to the other panelists' points, "
+                f"build on ideas you agree with, and challenge those you disagree with. "
+                f"If a user has interjected, address their input directly. "
+                f"Use the web_search tool if you need current data or sources to back up your claims."
+            )
+
         return [{
             "role": "user",
             "content": (
@@ -525,10 +542,7 @@ class DiscussionEngine:
                 f"Here is the discussion so far:\n{transcript}\n\n"
                 f"{user_instruction}"
                 f"{judge_instruction}\n\n"
-                f"This is round {current_round}. Respond to the other panelists' points, "
-                f"build on ideas you agree with, and challenge those you disagree with. "
-                f"If a user has interjected, address their input directly. "
-                f"Use the web_search tool if you need current data or sources to back up your claims."
+                f"{round_instruction}"
                 f"{viewpoint_instruction}"
                 f"{tone_instruction}"
                 f"{word_limit_instruction}"
