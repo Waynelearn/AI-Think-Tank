@@ -322,9 +322,9 @@ function updateChip(key) {
 }
 
 function toggleAgent(key) {
-    // Mediator and Judge are mandatory — cannot be deselected
+    // Mediator, Judge, and Sentiment Analyst are mandatory — cannot be deselected
     const agent = allAgents.find((a) => a.key === key);
-    if (agent && (agent.name === "The Mediator" || agent.name === "The Judge")) {
+    if (agent && (agent.name === "The Mediator" || agent.name === "The Judge" || agent.name === "Sentiment Analyst")) {
         if (selectedAgents.has(key)) return; // already selected, can't deselect
     }
     if (selectedAgents.has(key)) {
@@ -373,7 +373,7 @@ function populateAddSelect() {
 // ── Queue ──
 
 function buildQueueFromSelection() {
-    // Always ensure Mediator and Judge are selected (mandatory agents)
+    // Always ensure Mediator, Judge, and Sentiment Analyst are selected (mandatory agents)
     const mediatorAgent = allAgents.find((a) => a.name === "The Mediator");
     const judgeAgent = allAgents.find((a) => a.name === "The Judge");
     const sentimentAgent = allAgents.find((a) => a.name === "Sentiment Analyst");
@@ -384,6 +384,10 @@ function buildQueueFromSelection() {
     if (judgeAgent && !selectedAgents.has(judgeAgent.key)) {
         selectedAgents.add(judgeAgent.key);
         updateChip(judgeAgent.key);
+    }
+    if (sentimentAgent && !selectedAgents.has(sentimentAgent.key)) {
+        selectedAgents.add(sentimentAgent.key);
+        updateChip(sentimentAgent.key);
     }
 
     const allKeys = Array.from(selectedAgents);
