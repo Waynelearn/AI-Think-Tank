@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 20 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=9">
+    <link rel="stylesheet" href="/static/style.css?v=10">
     <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
@@ -120,7 +120,12 @@
             <div class="sentiment-panel" role="region" aria-label="Sentiment analysis panel">
                 <div class="sentiment-panel-header">
                     <span class="sentiment-panel-title">&#128202; Sentiment Analysis</span>
-                    <button class="sentiment-panel-close" id="sentiment-panel-close" aria-label="Close sentiment panel">&times;</button>
+                    <div class="sentiment-header-controls">
+                        <select id="sentiment-session-select" class="sentiment-session-select" aria-label="Select chat session">
+                            <option value="">Current Chat</option>
+                        </select>
+                        <button class="sentiment-panel-close" id="sentiment-panel-close" aria-label="Close sentiment panel">&times;</button>
+                    </div>
                 </div>
                 <!-- Viewpoint configuration -->
                 <div class="sentiment-viewpoint-config">
@@ -187,7 +192,7 @@
         </div>
     </div>
 
-    <script src="/static/utils.js?v=9"></script>
-    <script src="/static/app.js?v=9"></script>
+    <script src="/static/utils.js?v=10"></script>
+    <script src="/static/app.js?v=10"></script>
 </body>
 </html>

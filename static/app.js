@@ -38,6 +38,7 @@ const sentimentCommentary = document.getElementById("sentiment-commentary");
 const sentimentCommentaryBody = document.getElementById("sentiment-commentary-body");
 const sentimentRoundSelect = document.getElementById("sentiment-round-select");
 const sentimentEmptyState = document.getElementById("sentiment-empty-state");
+const sentimentSessionSelect = document.getElementById("sentiment-session-select");
 const viewpointAInput = document.getElementById("viewpoint-a");
 const viewpointBInput = document.getElementById("viewpoint-b");
 
@@ -125,6 +126,7 @@ let saveDebounceTimer = null;
 // Sentiment tracking
 let sentimentHistory = [];     // [{round, viewpoints, scores, commentary}, ...]
 let sentimentChartOpen = false;
+let sentimentViewSessionId = ""; // which session is being viewed in the sentiment panel
 
 // Font size scale (px) — only affects chat content, not UI chrome
 const FONT_SIZES = [12, 13, 14, 15, 16, 18, 20];
@@ -152,8 +154,9 @@ function applyTheme(theme) {
 function toggleTheme() {
     const current = document.documentElement.getAttribute("data-theme") || "dark";
     applyTheme(current === "dark" ? "light" : "dark");
-    if (sentimentChartOpen && sentimentHistory.length > 0) {
-        renderSentimentChart();
+    if (sentimentChartOpen) {
+        const { history } = getViewedSentimentData();
+        if (history.length > 0) renderSentimentChart(history);
     }
 }
 
@@ -811,6 +814,7 @@ function resumeSession(session) {
     sentimentHistory = [];
     sentimentCommentaryMap = {};
     sentimentChartOpen = false;
+    sentimentViewSessionId = "";
     sentimentPanel.style.display = "none";
     sentimentBadge.style.display = "none";
     sentimentStripTrackPanel.innerHTML = "";
@@ -880,6 +884,7 @@ function newChat() {
     sentimentHistory = [];
     sentimentChartOpen = false;
     sentimentCommentaryMap = {};
+    sentimentViewSessionId = "";
 
     // Reset UI
     chatArea.innerHTML = `
@@ -1959,6 +1964,56 @@ document.addEventListener("keydown", (e) => {
 
 // ── Sentiment Analysis Panel ──
 
+// Get sentiment data for the currently viewed session (active or another)
+function getViewedSentimentData() {
+    if (!sentimentViewSessionId || sentimentViewSessionId === persistentSessionId) {
+        return { history: sentimentHistory, commentary: sentimentCommentaryMap };
+    }
+    const loaded = loadSentimentData(sentimentViewSessionId);
+    return { history: loaded.sentimentHistory, commentary: loaded.sentimentCommentaryMap };
+}
+
+// Populate session selector dropdown with sessions that have sentiment data
+async function populateSentimentSessionSelect() {
+    sentimentSessionSelect.innerHTML = "";
+    try {
+        const res = await fetch(`/api/sessions?client_id=${encodeURIComponent(clientId)}`);
+        const data = await res.json();
+        const sessions = data.sessions || [];
+
+        const sessionsWithSentiment = [];
+        for (const s of sessions) {
+            const hasData = localStorage.getItem(`thinktank_sentiment_${s.id}`);
+            if (hasData || s.id === persistentSessionId) {
+                sessionsWithSentiment.push(s);
+            }
+        }
+
+        if (sessionsWithSentiment.length === 0 && persistentSessionId) {
+            const opt = document.createElement("option");
+            opt.value = persistentSessionId;
+            opt.textContent = "Current Chat";
+            sentimentSessionSelect.appendChild(opt);
+        }
+
+        for (const s of sessionsWithSentiment) {
+            const opt = document.createElement("option");
+            opt.value = s.id;
+            const topicPreview = s.topic.length > 35 ? s.topic.substring(0, 35) + "..." : s.topic;
+            const isCurrent = s.id === persistentSessionId;
+            opt.textContent = isCurrent ? `${topicPreview} (active)` : topicPreview;
+            sentimentSessionSelect.appendChild(opt);
+        }
+
+        sentimentSessionSelect.value = sentimentViewSessionId || persistentSessionId;
+    } catch (e) {
+        const opt = document.createElement("option");
+        opt.value = persistentSessionId || "";
+        opt.textContent = "Current Chat";
+        sentimentSessionSelect.appendChild(opt);
+    }
+}
+
 function handleSentimentUpdate(data) {
     const entry = {
         round: data.round,
@@ -1982,8 +2037,9 @@ function handleSentimentUpdate(data) {
     // Persist sentiment data
     saveSentimentData();
 
-    // If panel is open, refresh it
-    if (sentimentChartOpen) renderSentimentPanel();
+    // If panel is open and viewing the active session, refresh it
+    const isViewingActive = !sentimentViewSessionId || sentimentViewSessionId === persistentSessionId;
+    if (sentimentChartOpen && isViewingActive) renderSentimentPanel();
 }
 
 // Store the chat commentary for each round (captured from finishMessage)
@@ -1993,13 +2049,18 @@ function handleSentimentCommentary(round, commentary) {
     sentimentCommentaryMap[round] = commentary;
     // Persist sentiment data
     saveSentimentData();
-    // Update round selector
-    updateSentimentRoundSelect();
-    if (sentimentChartOpen) renderSentimentPanel();
+    // Update round selector and re-render only if viewing active session
+    const isViewingActive = !sentimentViewSessionId || sentimentViewSessionId === persistentSessionId;
+    if (isViewingActive) updateSentimentRoundSelect();
+    if (sentimentChartOpen && isViewingActive) renderSentimentPanel();
 }
 
-function updateSentimentRoundSelect() {
-    const rounds = Object.keys(sentimentCommentaryMap).sort((a, b) => +a - +b);
+function updateSentimentRoundSelect(commentaryMap) {
+    if (!commentaryMap) {
+        const viewed = getViewedSentimentData();
+        commentaryMap = viewed.commentary;
+    }
+    const rounds = Object.keys(commentaryMap).sort((a, b) => +a - +b);
     sentimentRoundSelect.innerHTML = "";
     rounds.forEach(r => {
         const opt = document.createElement("option");
@@ -2012,7 +2073,22 @@ function updateSentimentRoundSelect() {
 }
 
 function renderSentimentPanel() {
-    if (!sentimentHistory.length) return;
+    const { history, commentary } = getViewedSentimentData();
+    const isActiveSession = !sentimentViewSessionId || sentimentViewSessionId === persistentSessionId;
+
+    if (!history.length) {
+        // Show empty state, hide data sections
+        sentimentEmptyState.style.display = "block";
+        sentimentVpLabels.style.display = "none";
+        sentimentStripTrackPanel.style.display = "none";
+        sentimentChartSection.style.display = "none";
+        sentimentCommentary.style.display = "none";
+        sentimentLegend.innerHTML = "";
+        // Viewpoint inputs: editable only for active session
+        viewpointAInput.disabled = !isActiveSession;
+        viewpointBInput.disabled = !isActiveSession;
+        return;
+    }
 
     // Show data sections, hide empty state
     sentimentEmptyState.style.display = "none";
@@ -2020,26 +2096,34 @@ function renderSentimentPanel() {
     sentimentStripTrackPanel.style.display = "block";
     sentimentChartSection.style.display = "block";
 
-    const latest = sentimentHistory[sentimentHistory.length - 1];
+    const latest = history[history.length - 1];
 
     // Update viewpoint labels
     const vps = latest.viewpoints;
     sentimentVpRight.textContent = vps[0]?.label || "Viewpoint A";
     sentimentVpLeft.textContent = vps.length > 1 ? vps[1].label : "";
 
+    // Viewpoint inputs: show viewed session's viewpoints, editable only for active
+    viewpointAInput.disabled = !isActiveSession;
+    viewpointBInput.disabled = !isActiveSession;
+    if (!isActiveSession && vps.length >= 2) {
+        viewpointAInput.value = vps[0]?.label || "";
+        viewpointBInput.value = vps[1]?.label || "";
+    }
+
     // Render inline strip with emojis
     renderSentimentStripInPanel(latest);
 
     // Render chart
-    renderSentimentChart();
+    renderSentimentChart(history);
 
     // Show commentary section if we have any
-    const rounds = Object.keys(sentimentCommentaryMap);
+    const rounds = Object.keys(commentary);
     if (rounds.length > 0) {
         sentimentCommentary.style.display = "block";
-        updateSentimentRoundSelect();
+        updateSentimentRoundSelect(commentary);
         const selectedRound = sentimentRoundSelect.value;
-        sentimentCommentaryBody.innerHTML = renderMarkdown(sentimentCommentaryMap[selectedRound] || "");
+        sentimentCommentaryBody.innerHTML = renderMarkdown(commentary[selectedRound] || "");
     } else {
         sentimentCommentary.style.display = "none";
     }
@@ -2077,8 +2161,12 @@ function renderSentimentStripInPanel(latestEntry) {
     }
 }
 
-function renderSentimentChart() {
-    if (sentimentHistory.length === 0) return;
+function renderSentimentChart(history) {
+    if (!history) {
+        const viewed = getViewedSentimentData();
+        history = viewed.history;
+    }
+    if (history.length === 0) return;
 
     const canvas = sentimentCanvas;
     const ctx = canvas.getContext("2d");
@@ -2107,13 +2195,13 @@ function renderSentimentChart() {
 
     // Collect all agent names across all rounds
     const allAgentNames = new Set();
-    sentimentHistory.forEach(entry => {
+    history.forEach(entry => {
         Object.keys(entry.scores).forEach(name => {
             if (typeof entry.scores[name] === "number") allAgentNames.add(name);
         });
     });
 
-    const rounds = sentimentHistory.map(e => e.round);
+    const rounds = history.map(e => e.round);
     const minRound = Math.min(...rounds);
     const maxRound = Math.max(...rounds);
     const roundRange = maxRound - minRound || 1;
@@ -2160,7 +2248,7 @@ function renderSentimentChart() {
 
     // Viewpoint labels at top (skip on mobile — shown in CSS labels above)
     if (!isMobile) {
-        const latestEntry = sentimentHistory[sentimentHistory.length - 1];
+        const latestEntry = history[history.length - 1];
         if (latestEntry.viewpoints.length >= 1) {
             ctx.fillStyle = isDark ? "#27AE60" : "#1a8a45";
             ctx.textAlign = "right";
@@ -2176,7 +2264,7 @@ function renderSentimentChart() {
 
     // Compute mean score per round for outlier detection
     const roundMeans = {};
-    sentimentHistory.forEach(entry => {
+    history.forEach(entry => {
         const vals = Object.values(entry.scores).filter(s => typeof s === "number");
         roundMeans[entry.round] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     });
@@ -2188,7 +2276,7 @@ function renderSentimentChart() {
         const emoji = agent ? agent.avatar : "?";
 
         const points = [];
-        sentimentHistory.forEach(entry => {
+        history.forEach(entry => {
             if (typeof entry.scores[agentName] === "number") {
                 points.push({ round: entry.round, score: entry.scores[agentName] });
             }
@@ -2254,11 +2342,27 @@ function renderSentimentChart() {
 btnSentiment.addEventListener("click", () => {
     sentimentChartOpen = !sentimentChartOpen;
     if (sentimentChartOpen) {
+        sentimentViewSessionId = persistentSessionId;
         sentimentPanel.style.display = "flex";
         sentimentBadge.style.display = "none";
+        populateSentimentSessionSelect();
         renderSentimentPanel();
     } else {
         sentimentPanel.style.display = "none";
+        // Restore active session viewpoint inputs when closing
+        if (sentimentViewSessionId !== persistentSessionId) {
+            const activeSentiment = loadSentimentData(persistentSessionId);
+            const activeHistory = activeSentiment.sentimentHistory;
+            if (activeHistory.length) {
+                const latest = activeHistory[activeHistory.length - 1];
+                if (latest.viewpoints && latest.viewpoints.length >= 2) {
+                    viewpointAInput.value = latest.viewpoints[0].label || "";
+                    viewpointBInput.value = latest.viewpoints[1].label || "";
+                }
+            }
+            viewpointAInput.disabled = false;
+            viewpointBInput.disabled = false;
+        }
     }
 });
 
@@ -2266,6 +2370,26 @@ sentimentPanelClose.addEventListener("click", (e) => {
     e.stopPropagation();
     sentimentChartOpen = false;
     sentimentPanel.style.display = "none";
+    // Restore active session viewpoint inputs when closing
+    if (sentimentViewSessionId !== persistentSessionId) {
+        const activeSentiment = loadSentimentData(persistentSessionId);
+        const activeHistory = activeSentiment.sentimentHistory;
+        if (activeHistory.length) {
+            const latest = activeHistory[activeHistory.length - 1];
+            if (latest.viewpoints && latest.viewpoints.length >= 2) {
+                viewpointAInput.value = latest.viewpoints[0].label || "";
+                viewpointBInput.value = latest.viewpoints[1].label || "";
+            }
+        }
+        viewpointAInput.disabled = false;
+        viewpointBInput.disabled = false;
+    }
+});
+
+// Session selector in sentiment panel
+sentimentSessionSelect.addEventListener("change", () => {
+    sentimentViewSessionId = sentimentSessionSelect.value;
+    renderSentimentPanel();
 });
 
 // Close panel on click outside
@@ -2273,18 +2397,34 @@ sentimentPanel.addEventListener("click", (e) => {
     if (e.target === sentimentPanel) {
         sentimentChartOpen = false;
         sentimentPanel.style.display = "none";
+        // Restore active session viewpoint inputs when closing
+        if (sentimentViewSessionId !== persistentSessionId) {
+            const activeSentiment = loadSentimentData(persistentSessionId);
+            const activeHistory = activeSentiment.sentimentHistory;
+            if (activeHistory.length) {
+                const latest = activeHistory[activeHistory.length - 1];
+                if (latest.viewpoints && latest.viewpoints.length >= 2) {
+                    viewpointAInput.value = latest.viewpoints[0].label || "";
+                    viewpointBInput.value = latest.viewpoints[1].label || "";
+                }
+            }
+            viewpointAInput.disabled = false;
+            viewpointBInput.disabled = false;
+        }
     }
 });
 
 // Round selector for commentary
 sentimentRoundSelect.addEventListener("change", () => {
     const r = sentimentRoundSelect.value;
-    sentimentCommentaryBody.innerHTML = renderMarkdown(sentimentCommentaryMap[r] || "");
+    const { commentary } = getViewedSentimentData();
+    sentimentCommentaryBody.innerHTML = renderMarkdown(commentary[r] || "");
 });
 
 window.addEventListener("resize", () => {
-    if (sentimentChartOpen && sentimentHistory.length > 0) {
-        renderSentimentChart();
+    if (sentimentChartOpen) {
+        const { history } = getViewedSentimentData();
+        if (history.length > 0) renderSentimentChart(history);
     }
 });
 

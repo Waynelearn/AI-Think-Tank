@@ -1100,8 +1100,10 @@ header h1 {
 
     .sentiment-panel-overlay { align-items: flex-start; }
     .sentiment-panel { width: 100vw; max-height: 100vh; padding: 10px; border-radius: 0; }
-    .sentiment-panel-header { margin-bottom: 6px; }
+    .sentiment-panel-header { margin-bottom: 6px; flex-wrap: wrap; gap: 4px; }
     .sentiment-panel-title { font-size: 14px; }
+    .sentiment-header-controls { gap: 4px; }
+    .sentiment-session-select { font-size: 11px; padding: 3px 6px; max-width: 200px; min-width: 100px; }
     .sentiment-viewpoint-config { padding: 6px 8px; margin-bottom: 8px; }
     .sentiment-config-label { font-size: 11px; margin-bottom: 4px; }
     .viewpoint-inputs { flex-direction: column; gap: 4px; }
@@ -1184,6 +1186,29 @@ header h1 {
     font-size: 17px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.sentiment-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sentiment-session-select {
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-size: 12px;
+    padding: 4px 8px;
+    max-width: 300px;
+    min-width: 140px;
+    cursor: pointer;
+}
+
+.sentiment-session-select:focus {
+    border-color: var(--accent-blue);
+    outline: none;
 }
 
 .sentiment-panel-close {
