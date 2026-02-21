@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 19 AI personas debate your topics across philosophy, finance, strategy, and more.">
+    <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 20 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=6">
+    <link rel="stylesheet" href="/static/style.css?v=7">
     <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
@@ -18,6 +18,7 @@
                 <a href="/admin" class="help-link" title="Usage dashboard" aria-label="Usage dashboard">&#128202;</a>
             </p>
             <div class="header-controls">
+                <button id="btn-sentiment" class="icon-btn sentiment-btn" title="Sentiment Analysis" aria-label="Sentiment Analysis">&#128202; Sentiment <span class="sentiment-badge" id="sentiment-badge" style="display:none;"></span></button>
                 <button id="btn-theme" class="icon-btn theme-toggle" aria-label="Switch to light mode" title="Toggle theme"><span id="theme-icon">&#9790;</span></button>
                 <div class="font-controls" aria-label="Font size controls">
                     <button id="btn-font-dec" class="icon-btn" aria-label="Decrease font size" title="Smaller text">A-</button>
@@ -114,28 +115,48 @@
             </div>
         </div>
 
-        <!-- Sentiment Spectrum Strip (pinned between chat and input, compact) -->
-        <div class="sentiment-strip" id="sentiment-strip" style="display:none;"
-             role="button" tabindex="0" aria-label="Sentiment spectrum — click to expand chart"
-             title="Click to expand sentiment chart">
-            <div class="sentiment-strip-labels">
-                <span class="sentiment-label-left" id="sentiment-label-left"></span>
-                <span class="sentiment-label-center">Neutral</span>
-                <span class="sentiment-label-right" id="sentiment-label-right"></span>
-            </div>
-            <div class="sentiment-strip-track" id="sentiment-strip-track"></div>
-        </div>
-
-        <!-- Expandable Sentiment Chart (overlay, doesn't push layout) -->
-        <div class="sentiment-chart-overlay" id="sentiment-chart-container" style="display:none;">
-            <div class="sentiment-chart-container" role="region" aria-label="Sentiment time-series chart">
-                <div class="sentiment-chart-header">
-                    <span class="sentiment-chart-title">Viewpoint Alignment Over Rounds</span>
-                    <button class="sentiment-chart-close" id="sentiment-chart-close"
-                            aria-label="Collapse sentiment chart">&times;</button>
+        <!-- Sentiment Analysis Panel (full-page overlay, triggered from header button) -->
+        <div class="sentiment-panel-overlay" id="sentiment-panel" style="display:none;">
+            <div class="sentiment-panel" role="region" aria-label="Sentiment analysis panel">
+                <div class="sentiment-panel-header">
+                    <span class="sentiment-panel-title">&#128202; Sentiment Analysis</span>
+                    <button class="sentiment-panel-close" id="sentiment-panel-close" aria-label="Close sentiment panel">&times;</button>
                 </div>
-                <canvas id="sentiment-canvas" width="800" height="300"></canvas>
+                <!-- Viewpoint configuration -->
+                <div class="sentiment-viewpoint-config">
+                    <label class="sentiment-config-label">Points of Contention</label>
+                    <div class="viewpoint-inputs">
+                        <input type="text" id="viewpoint-a" placeholder="e.g. Regulate AI strictly" autocomplete="off" maxlength="60">
+                        <span class="viewpoint-vs">vs</span>
+                        <input type="text" id="viewpoint-b" placeholder="e.g. Let markets self-regulate" autocomplete="off" maxlength="60">
+                    </div>
+                    <span class="viewpoint-hint">Leave blank to auto-detect from Round 1</span>
+                </div>
+                <!-- Spectrum strip -->
+                <div class="sentiment-viewpoint-labels" id="sentiment-viewpoint-labels" style="display:none;">
+                    <span class="sentiment-vp-left" id="sentiment-vp-left"></span>
+                    <span class="sentiment-vp-center">Neutral</span>
+                    <span class="sentiment-vp-right" id="sentiment-vp-right"></span>
+                </div>
+                <div class="sentiment-strip-inline" id="sentiment-strip-track-panel" style="display:none;"></div>
+                <!-- Time-series chart -->
+                <div class="sentiment-chart-section" id="sentiment-chart-section" style="display:none;">
+                    <span class="sentiment-chart-title">Viewpoint Alignment Over Rounds</span>
+                    <canvas id="sentiment-canvas" width="800" height="300"></canvas>
+                </div>
                 <div class="sentiment-legend" id="sentiment-legend"></div>
+                <!-- Qualitative analysis from Sentiment Analyst -->
+                <div class="sentiment-commentary" id="sentiment-commentary" style="display:none;">
+                    <div class="sentiment-commentary-header">
+                        <span class="sentiment-commentary-title">&#128196; Analysis</span>
+                        <select id="sentiment-round-select" class="sentiment-round-select" aria-label="Select round"></select>
+                    </div>
+                    <div class="sentiment-commentary-body" id="sentiment-commentary-body"></div>
+                </div>
+                <div class="sentiment-empty-state" id="sentiment-empty-state">
+                    <p>No sentiment data yet. The Sentiment Analyst will report after speaking in the discussion.</p>
+                    <p class="viewpoint-hint">Set your points of contention above, or leave blank for auto-detection.</p>
+                </div>
             </div>
         </div>
 
@@ -166,7 +187,7 @@
         </div>
     </div>
 
-    <script src="/static/utils.js?v=6"></script>
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/utils.js?v=7"></script>
+    <script src="/static/app.js?v=7"></script>
 </body>
 </html>

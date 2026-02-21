@@ -1098,84 +1098,206 @@ header h1 {
     .welcome-message { font-size: 13px; }
     .welcome-sub { font-size: 11px; }
 
-    .sentiment-strip { padding: 2px 6px; margin: 1px 0; }
-    .sentiment-strip-track { height: 14px; }
-    .sentiment-dot { width: 10px; height: 10px; }
-    .sentiment-strip-labels { font-size: 8px; }
-
-    .sentiment-chart-overlay { bottom: 60px; width: 95vw; }
-    #sentiment-canvas { height: 120px; }
+    .sentiment-panel { width: 96vw; height: 92vh; padding: 10px; }
+    .sentiment-chart-section #sentiment-canvas { height: 180px; }
     .sentiment-legend { gap: 4px; font-size: 10px; }
+    .viewpoint-inputs { flex-direction: column; gap: 4px; }
+    .viewpoint-vs { display: none; }
+    .sentiment-commentary-body { max-height: 150px; }
 }
 
-/* ── Sentiment Spectrum Strip (compact, between chat and input) ── */
-.sentiment-strip {
-    flex-shrink: 0;
-    padding: 3px 10px;
+/* ── Sentiment Button (header) ── */
+.sentiment-btn {
+    position: relative;
+    font-size: 11px;
+    padding: 2px 8px;
+}
+
+.sentiment-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--accent-red);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 50%;
+    min-width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* ── Sentiment Analysis Panel (full-page overlay) ── */
+.sentiment-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sentiment-panel {
     background: var(--bg-surface);
     border: 1px solid var(--border-default);
-    border-radius: 5px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-    margin: 2px 0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    width: 95vw;
+    height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
 }
 
-.sentiment-strip:hover {
-    border-color: var(--accent-blue);
-}
-
-.sentiment-strip-labels {
+.sentiment-panel-header {
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
-    color: var(--text-faint);
-    margin-bottom: 1px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
 }
 
-.sentiment-label-left { color: var(--accent-red); }
-.sentiment-label-center { color: var(--text-very-faint); font-size: 8px; }
-.sentiment-label-right { color: var(--accent-green); }
+.sentiment-panel-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
 
-.sentiment-strip-track {
+.sentiment-panel-close {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 0 6px;
+}
+
+.sentiment-panel-close:hover {
+    color: var(--accent-red);
+}
+
+/* ── Viewpoint Config (inside panel) ── */
+.sentiment-viewpoint-config {
+    flex-shrink: 0;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+    border-radius: 8px;
+}
+
+.sentiment-config-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.viewpoint-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewpoint-inputs input {
+    flex: 1;
+    padding: 6px 10px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-muted);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.viewpoint-inputs input::placeholder {
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.viewpoint-vs {
+    color: var(--text-faint);
+    font-size: 12px;
+    font-style: italic;
+    flex-shrink: 0;
+}
+
+.viewpoint-hint {
+    font-size: 10px;
+    color: var(--text-faint);
+    display: block;
+    margin-top: 4px;
+}
+
+/* ── Viewpoint Labels ── */
+.sentiment-viewpoint-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+    padding: 0 6px;
+    flex-shrink: 0;
+}
+
+.sentiment-vp-left { color: var(--accent-red); font-weight: 600; }
+.sentiment-vp-center { color: var(--text-very-faint); font-size: 11px; }
+.sentiment-vp-right { color: var(--accent-green); font-weight: 600; }
+
+/* ── Inline Strip (inside panel) ── */
+.sentiment-strip-inline {
     position: relative;
-    height: 16px;
+    height: 32px;
     background: linear-gradient(90deg,
         rgba(231, 76, 60, 0.15),
         rgba(128, 128, 128, 0.08) 50%,
         rgba(39, 174, 96, 0.15)
     );
-    border-radius: 8px;
+    border-radius: 16px;
     border: 1px solid var(--border-muted);
+    margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .sentiment-dot {
     position: absolute;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    border: 2px solid var(--bg-page);
+    font-size: 18px;
+    line-height: 1;
     transition: left 0.5s ease;
     cursor: default;
     z-index: 1;
 }
 
 .sentiment-dot:hover {
-    transform: translate(-50%, -50%) scale(1.3);
+    transform: translate(-50%, -50%) scale(1.4);
     z-index: 2;
+}
+
+.sentiment-dot-outlier {
+    animation: sentiment-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sentiment-pulse {
+    0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+    50% { filter: drop-shadow(0 0 6px rgba(255, 107, 157, 0.6)); }
 }
 
 .sentiment-dot-tooltip {
     position: absolute;
-    bottom: calc(100% + 4px);
+    bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-raised);
     border: 1px solid var(--border-muted);
     border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 10px;
+    padding: 3px 8px;
+    font-size: 11px;
     color: var(--text-secondary);
     white-space: nowrap;
     pointer-events: none;
@@ -1187,79 +1309,110 @@ header h1 {
     opacity: 1;
 }
 
-/* ── Sentiment Chart Overlay (floats above chat, doesn't push layout) ── */
-.sentiment-chart-overlay {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(90vw, 700px);
-    z-index: 100;
-    pointer-events: none;
-}
-
-.sentiment-chart-overlay .sentiment-chart-container {
-    pointer-events: auto;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: 8px;
-    padding: 8px 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-
-.sentiment-chart-header {
+/* ── Chart Section ── */
+.sentiment-chart-section {
+    flex: 1;
+    min-height: 0;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
+    flex-direction: column;
 }
 
 .sentiment-chart-title {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-muted);
-}
-
-.sentiment-chart-close {
-    background: none;
-    border: none;
-    color: var(--text-faint);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 0 4px;
-}
-
-.sentiment-chart-close:hover {
-    color: var(--accent-red);
+    display: block;
+    margin-bottom: 6px;
+    flex-shrink: 0;
 }
 
 #sentiment-canvas {
     width: 100%;
-    height: 180px;
+    flex: 1;
+    min-height: 200px;
     display: block;
 }
 
 .sentiment-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    padding-top: 4px;
+    gap: 10px;
+    padding: 8px 0;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .sentiment-legend-item {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-muted);
 }
 
-.sentiment-legend-swatch {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+.sentiment-legend-emoji {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.sentiment-legend-line {
+    display: inline-block;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    vertical-align: middle;
+}
+
+/* ── Commentary Section ── */
+.sentiment-commentary {
     flex-shrink: 0;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+    border-radius: 8px;
+}
+
+.sentiment-commentary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.sentiment-commentary-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.sentiment-round-select {
+    background: var(--bg-page);
+    border: 1px solid var(--border-muted);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
+.sentiment-commentary-body {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* ── Empty State ── */
+.sentiment-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-faint);
+    font-size: 13px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 /* ── Curator requeue notice ── */

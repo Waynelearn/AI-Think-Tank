@@ -21,8 +21,12 @@ class DiscussionEngine:
                           file_context: str = "",
                           prior_discussion: Discussion | None = None,
                           api_keys: dict | None = None,
-                          session_id: str = ""):
+                          session_id: str = "",
+                          viewpoints: list[str] | None = None):
         """Run an interactive session, processing commands from the frontend."""
+
+        # Fixed viewpoints for sentiment analysis (user-provided or auto-generated from round 1)
+        fixed_viewpoints = list(viewpoints) if viewpoints and len(viewpoints) == 2 and all(v.strip() for v in viewpoints) else []
 
         if prior_discussion:
             discussion = prior_discussion
@@ -71,13 +75,16 @@ class DiscussionEngine:
 
                 await self._run_single_agent(websocket, agent, discussion, topic,
                                              round_num, file_context, live_keys, session_id,
-                                             continue_from=continue_from)
+                                             continue_from=continue_from,
+                                             agent_key=agent_key,
+                                             fixed_viewpoints=fixed_viewpoints)
 
-                # Run curator check on the agent's response
-                await self._run_curator_check(
-                    websocket, agent, discussion, topic,
-                    round_num, file_context, api_keys, session_id
-                )
+                # Run curator check on the agent's response (skip for sentiment analyst)
+                if agent_key != "sentiment_analyst":
+                    await self._run_curator_check(
+                        websocket, agent, discussion, topic,
+                        round_num, file_context, api_keys, session_id
+                    )
 
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
@@ -108,11 +115,6 @@ class DiscussionEngine:
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "new_round":
-                # Run sentiment analysis on the just-completed round
-                await self._run_sentiment_analysis(
-                    websocket, discussion, topic, round_num,
-                    file_context, api_keys, session_id
-                )
                 round_num += 1
                 await self._send(websocket, {
                     "type": "round_start",
@@ -123,11 +125,6 @@ class DiscussionEngine:
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "end":
-                # Run final sentiment analysis
-                await self._run_sentiment_analysis(
-                    websocket, discussion, topic, round_num,
-                    file_context, api_keys, session_id
-                )
                 if session_id:
                     end_session(session_id)
                 await self._send(websocket, {
@@ -149,14 +146,21 @@ class DiscussionEngine:
     async def _run_single_agent(self, websocket: WebSocket, agent, discussion: Discussion,
                                  topic: str, round_num: int, file_context: str,
                                  api_keys: dict | None = None, session_id: str = "",
-                                 continue_from: str = ""):
+                                 continue_from: str = "",
+                                 agent_key: str = "",
+                                 fixed_viewpoints: list[str] | None = None):
         """Stream a single agent's response."""
         word_limit = int((api_keys or {}).get("word_limit", 0))
         tone = (api_keys or {}).get("tone", "")
         messages = self._build_messages(discussion, topic, round_num, file_context,
                                         word_limit=word_limit, tone=tone,
                                         continue_from=continue_from,
-                                        continue_agent=agent.name if continue_from else "")
+                                        continue_agent=agent.name if continue_from else "",
+                                        agent_key=agent_key,
+                                        fixed_viewpoints=fixed_viewpoints)
+
+        if not agent_key:
+            agent_key = next((k for k, a in self.registry.agents.items() if a is agent), "")
 
         await self._send(websocket, {
             "type": "agent_start",
@@ -164,7 +168,7 @@ class DiscussionEngine:
             "color": agent.color,
             "avatar": agent.avatar,
             "round": round_num,
-            "agent_key": next((k for k, a in self.registry.agents.items() if a is agent), ""),
+            "agent_key": agent_key,
         })
 
         full_response = ""
@@ -192,6 +196,12 @@ class DiscussionEngine:
             "agent": agent.name,
             "usage": usage.to_dict(),
         })
+
+        # If this is the Sentiment Analyst, extract chart data from the response
+        if agent_key == "sentiment_analyst":
+            await self._extract_sentiment_data(
+                websocket, full_response, round_num, fixed_viewpoints
+            )
 
         # Persist receipt and session state
         if session_id:
@@ -264,82 +274,43 @@ class DiscussionEngine:
         except Exception as e:
             logger.warning(f"Curator check failed: {e}")
 
-    # ── Sentiment Analysis ──
+    # ── Sentiment Data Extraction ──
 
-    async def _run_sentiment_analysis(self, websocket: WebSocket, discussion: Discussion,
-                                       topic: str, round_num: int, file_context: str,
-                                       api_keys: dict | None = None, session_id: str = ""):
-        """Run the Sentiment Analyst silently and send sentiment_update event."""
-        observer = self.registry.get_observer("sentiment_analyst")
-        if not observer:
+    async def _extract_sentiment_data(self, websocket: WebSocket,
+                                       full_response: str, round_num: int,
+                                       fixed_viewpoints: list[str] | None = None):
+        """Extract JSON data from Sentiment Analyst's chat response and send sentiment_update."""
+        delimiter = "---SENTIMENT_DATA---"
+        if delimiter not in full_response:
+            logger.warning("Sentiment Analyst response missing ---SENTIMENT_DATA--- delimiter")
             return
 
-        messages = self._build_sentiment_messages(discussion, topic, round_num)
-        if not messages:
+        parts = full_response.split(delimiter, 1)
+        if len(parts) < 2:
             return
 
+        json_str = self._clean_json_response(parts[1])
         try:
-            full_response = ""
-            usage = Usage()
-            async for item in observer.stream_response(messages, api_keys=api_keys):
-                if isinstance(item, Usage):
-                    usage = item
-                else:
-                    full_response += item
-
-            cleaned = self._clean_json_response(full_response)
-            sentiment_data = json.loads(cleaned)
-
-            if "viewpoints" not in sentiment_data or "scores" not in sentiment_data:
-                logger.warning("Sentiment analysis missing required fields")
+            data = json.loads(json_str)
+            if "viewpoints" not in data or "scores" not in data:
+                logger.warning("Sentiment data missing viewpoints or scores")
                 return
+
+            # Auto-fix viewpoints from round 1 if no user-defined ones
+            if fixed_viewpoints is not None and not fixed_viewpoints:
+                vps = data.get("viewpoints", [])
+                if len(vps) >= 2:
+                    fixed_viewpoints.extend([vps[0].get("label", ""), vps[1].get("label", "")])
 
             await self._send(websocket, {
                 "type": "sentiment_update",
                 "round": round_num,
-                "data": sentiment_data,
+                "data": data,
             })
-
-            if session_id:
-                model = (api_keys or {}).get("model", "")
-                cost = estimate_cost(model, usage.input_tokens, usage.output_tokens)
-                log_receipt(
-                    session_id=session_id,
-                    agent_name="[Sentiment Analyst]",
-                    round_num=round_num,
-                    input_tokens=usage.input_tokens,
-                    output_tokens=usage.output_tokens,
-                    estimated_cost=cost,
-                    provider=(api_keys or {}).get("provider", ""),
-                    model=model,
-                )
-
         except json.JSONDecodeError:
-            logger.warning(f"Sentiment analysis returned invalid JSON: {full_response[:200]}")
+            logger.warning(f"Sentiment Analyst JSON parse failed: {json_str[:200]}")
         except Exception as e:
-            logger.warning(f"Sentiment analysis failed: {e}")
-
-    def _build_sentiment_messages(self, discussion: Discussion, topic: str,
-                                   target_round: int) -> list[dict]:
-        """Build message for the Sentiment Analyst to analyze a specific round."""
-        round_messages = [
-            m for m in discussion.messages
-            if m.round_num == target_round and m.agent_name != "user"
-        ]
-        if not round_messages:
-            return []
-
-        transcript_lines = [f"Topic: {topic}\n", f"--- Round {target_round} ---\n"]
-        for msg in round_messages:
-            transcript_lines.append(f"{msg.agent_name}: {msg.content}\n")
-
-        return [{
-            "role": "user",
-            "content": (
-                "Analyze the following round of discussion and produce your JSON output.\n\n"
-                + "\n".join(transcript_lines)
-            ),
-        }]
+            logger.warning(f"Sentiment data extraction failed: {e}")
 
     # ── Helpers ──
 
@@ -440,7 +411,9 @@ class DiscussionEngine:
                         current_round: int, file_context: str = "",
                         word_limit: int = 0, tone: str = "",
                         continue_from: str = "",
-                        continue_agent: str = "") -> list[dict]:
+                        continue_agent: str = "",
+                        agent_key: str = "",
+                        fixed_viewpoints: list[str] | None = None) -> list[dict]:
         """Build the message history for the Claude API call."""
         file_section = ""
         if file_context:
@@ -474,6 +447,16 @@ class DiscussionEngine:
                 f"Begin your continuation seamlessly as if mid-paragraph."
             )
 
+        viewpoint_instruction = ""
+        if agent_key == "sentiment_analyst" and fixed_viewpoints and len(fixed_viewpoints) == 2:
+            viewpoint_instruction = (
+                f"\n\nFIXED VIEWPOINTS (do NOT change these):\n"
+                f"- Viewpoint A (+1): {fixed_viewpoints[0]}\n"
+                f"- Viewpoint B (-1): {fixed_viewpoints[1]}\n"
+                f"Use EXACTLY these two viewpoints in your analysis and JSON output. "
+                f"Do NOT invent new ones or rephrase them."
+            )
+
         if not discussion.messages:
             return [{
                 "role": "user",
@@ -481,6 +464,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Please share your perspective. If you need current data or sources, "
                     f"use the web_search tool to find evidence and include links in your response."
+                    f"{viewpoint_instruction}"
                     f"{tone_instruction}"
                     f"{word_limit_instruction}"
                 ),
@@ -509,6 +493,7 @@ class DiscussionEngine:
                     f"The discussion topic is: {topic}{file_section}\n\n"
                     f"Here is the discussion so far:\n{transcript}\n\n"
                     f"{continuation_instruction}"
+                    f"{viewpoint_instruction}"
                     f"{tone_instruction}"
                     f"{word_limit_instruction}"
                 ),
@@ -524,6 +509,7 @@ class DiscussionEngine:
                 f"build on ideas you agree with, and challenge those you disagree with. "
                 f"If a user has interjected, address their input directly. "
                 f"Use the web_search tool if you need current data or sources to back up your claims."
+                f"{viewpoint_instruction}"
                 f"{tone_instruction}"
                 f"{word_limit_instruction}"
             ),

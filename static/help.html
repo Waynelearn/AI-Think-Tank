@@ -222,7 +222,7 @@
             <li><strong>New Round</strong> — Advances to a new discussion round and refills the queue with all selected agents.</li>
             <li><strong>Stop</strong> — Pauses auto-play (does not end the session).</li>
             <li><strong>Clear</strong> — Empties the queue entirely.</li>
-            <li><strong>Shuffle</strong> — Randomizes the speaker order (The Mediator stays last).</li>
+            <li><strong>Shuffle</strong> — Randomizes the speaker order (The Mediator, The Judge, and Sentiment Analyst stay pinned at the end).</li>
         </ul>
 
         <h3>Reordering &amp; Editing the Queue</h3>
@@ -234,7 +234,7 @@
         </ul>
 
         <div class="tip">
-            <strong>Tip:</strong> The Mediator is automatically placed last in the queue. You can drag them earlier if you want synthesis sooner.
+            <strong>Tip:</strong> The Mediator, Judge, and Sentiment Analyst are automatically pinned at the end of the queue. You can drag them earlier if you want their input sooner.
         </div>
 
         <h3>Mobile Users</h3>
@@ -354,8 +354,62 @@
             <li><strong>Add data:</strong> "The latest CPI came in at 3.2% — how does this change your analysis?" keeps things current.</li>
         </ul>
 
+        <!-- ───────────── Sentiment Analysis ───────────── -->
+        <h2>7. Sentiment Analysis</h2>
+        <p>
+            The <strong>Sentiment Analyst</strong> is a specialized agent that tracks where each panelist stands
+            on the core disagreement in your discussion. It speaks at the end of every round (after The Judge),
+            providing both qualitative commentary and a structured sentiment chart.
+        </p>
+
+        <h3>How It Works</h3>
+        <ol>
+            <li>The Sentiment Analyst is queued <strong>last</strong> in every round — after The Judge.</li>
+            <li>When it speaks, it analyzes the positions of all agents who spoke that round.</li>
+            <li>It identifies two main opposing viewpoints (the "points of contention") and scores each agent on a scale from <strong>-1</strong> (fully aligned with Viewpoint A) to <strong>+1</strong> (fully aligned with Viewpoint B), with 0 being neutral.</li>
+            <li>After speaking in the chat, it updates the sentiment chart automatically.</li>
+        </ol>
+
+        <h3>Setting Points of Contention</h3>
+        <p>
+            Click the <strong>&#128202; Sentiment</strong> button in the header to open the full-page Sentiment Analysis panel.
+            At the top, you'll see two input fields where you can define the opposing viewpoints before or during the discussion.
+        </p>
+        <ul>
+            <li><strong>Custom viewpoints:</strong> Enter two opposing positions (e.g., "Regulate AI strictly" vs "Let markets self-regulate"). These will be fixed for all rounds.</li>
+            <li><strong>Auto-detect:</strong> Leave the fields blank and the Sentiment Analyst will automatically identify the key points of contention from Round 1. Once detected, they are locked for all subsequent rounds and the input fields are auto-filled.</li>
+        </ul>
+        <div class="tip">
+            <strong>Tip:</strong> Setting viewpoints manually before starting gives you tighter control over what the analysis tracks. Auto-detection works well for open-ended topics.
+        </div>
+
+        <h3>The Sentiment Panel</h3>
+        <p>
+            The panel (opened via the header button) is a full-page overlay containing:
+        </p>
+        <ul>
+            <li><strong>Viewpoint Configuration</strong> — The two input fields for setting points of contention.</li>
+            <li><strong>Spectrum Strip</strong> — A horizontal bar showing each agent's current position as their emoji avatar, positioned from left (Viewpoint A) to right (Viewpoint B).</li>
+            <li><strong>Time-Series Chart</strong> — A line chart tracking how each agent's position moves across rounds. Each agent is represented by their emoji and a colored line.</li>
+            <li><strong>Qualitative Analysis</strong> — Written commentary from the Sentiment Analyst about trends, shifts, alliances, and outliers. Use the round selector to view analysis from any round.</li>
+        </ul>
+
+        <h3>Reading the Chart</h3>
+        <ul>
+            <li>The Y-axis runs from <strong>-1</strong> (Viewpoint A) to <strong>+1</strong> (Viewpoint B). The center (0) is neutral.</li>
+            <li>Each agent is identified by their <strong>emoji avatar</strong> and a colored line matching their theme color.</li>
+            <li><strong>Outliers</strong> — Agents with extreme positions (far from the group average) are highlighted with a glowing halo effect on the chart and a pulsing animation on the strip, making them easy to spot.</li>
+            <li>The legend at the bottom shows which emoji and color belongs to which agent.</li>
+        </ul>
+
+        <h3>Removing the Sentiment Analyst</h3>
+        <p>
+            Unlike The Mediator and The Judge, the Sentiment Analyst is <strong>optional</strong>. You can deselect it from the agent chips
+            or remove it from the queue. If removed, the sentiment chart will not update for that round.
+        </p>
+
         <!-- ───────────── File Uploads ───────────── -->
-        <h2>7. Attaching Files</h2>
+        <h2>8. Attaching Files</h2>
         <p>Click <strong>"Attach"</strong> in the bottom toolbar to upload reference materials. Agents will read and cite them during the discussion.</p>
         <p>Supported file types:</p>
         <ul>
@@ -370,7 +424,7 @@
         </div>
 
         <!-- ───────────── Saving & Loading ───────────── -->
-        <h2>8. Saving &amp; Loading Discussions</h2>
+        <h2>9. Saving &amp; Loading Discussions</h2>
 
         <h3>Saving</h3>
         <p>Use the save dropdown and button in the bottom toolbar:</p>
@@ -387,7 +441,7 @@
         </ol>
 
         <!-- ───────────── Web Search ───────────── -->
-        <h2>9. Web Search &amp; Images</h2>
+        <h2>10. Web Search &amp; Images</h2>
         <p>
             When a Brave Search API key is configured, agents can autonomously search the web during their responses.
             They use this to find current data, cite sources with links, and embed images.
@@ -401,7 +455,7 @@
         <p>Image results are embedded directly in the chat. If an image fails to load, a fallback thumbnail or link is shown automatically.</p>
 
         <!-- ───────────── Token Usage ───────────── -->
-        <h2>10. Token Usage &amp; Cost Tracking</h2>
+        <h2>11. Token Usage &amp; Cost Tracking</h2>
         <p>
             A usage bar appears below the settings panel once a discussion starts. It shows cumulative token usage and estimated cost for the current session.
         </p>
@@ -415,7 +469,7 @@
         </div>
 
         <!-- ───────────── Tips ───────────── -->
-        <h2>11. Tips &amp; Best Practices</h2>
+        <h2>12. Tips &amp; Best Practices</h2>
         <ul>
             <li><strong>Start small:</strong> Begin with 3-5 agents for focused discussions. Add more for broader debates.</li>
             <li><strong>Use The Mediator last:</strong> They synthesize everyone's points — best placed at the end of a round.</li>
@@ -427,7 +481,7 @@
         </ul>
 
         <!-- ───────────── Keyboard Shortcuts ───────────── -->
-        <h2>12. Keyboard Shortcuts</h2>
+        <h2>13. Keyboard Shortcuts</h2>
         <ul>
             <li><kbd>Enter</kbd> — Start discussion / Send interjection</li>
             <li><kbd>Ctrl+Enter</kbd> — Submit from anywhere on the page</li>
@@ -437,7 +491,7 @@
         </ul>
 
         <!-- ───────────── Troubleshooting ───────────── -->
-        <h2>13. Troubleshooting</h2>
+        <h2>14. Troubleshooting</h2>
         <ul>
             <li><strong>"Please add your API key"</strong> — Open the Settings panel, select your provider, and enter a valid API key.</li>
             <li><strong>"Connection error"</strong> — The backend server may not be running. Ensure <code>python main.py</code> is active on port 8000.</li>

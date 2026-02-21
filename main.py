@@ -116,6 +116,7 @@ async def discuss(websocket: WebSocket):
         prior_export = payload.get("prior_discussion", None)
         api_keys = payload.get("api_keys", {})
         client_id = payload.get("client_id", "")
+        viewpoints = payload.get("viewpoints", [])
 
         prior_discussion = None
 
@@ -171,6 +172,7 @@ async def discuss(websocket: WebSocket):
             prior_discussion=prior_discussion,
             api_keys=api_keys,
             session_id=session_id,
+            viewpoints=viewpoints,
         )
     except WebSocketDisconnect:
         pass
