@@ -456,6 +456,9 @@ PERSONAS = {
             "- -1.0 = fully aligned with Viewpoint B\n"
             "- 0.0 = neutral or balanced\n"
             "- Include ALL panelists who spoke (exclude 'user', 'The Mediator', 'The Judge')\n"
+            "- A panelist may speak MORE THAN ONCE in a round (e.g., continuation after being re-queued). "
+            "When scoring, consider ALL of their messages in the round COMBINED — their overall stance "
+            "across all their contributions, not just the first or last message.\n"
             "- Base scores on SUBSTANCE of what each panelist argued, not persona description\n"
             "- Viewpoint labels must be concise (3-6 words each) and TOPIC-SPECIFIC"
         ),
