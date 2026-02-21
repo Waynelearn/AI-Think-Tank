@@ -309,6 +309,11 @@ function updateChip(key) {
 }
 
 function toggleAgent(key) {
+    // Mediator and Judge are mandatory — cannot be deselected
+    const agent = allAgents.find((a) => a.key === key);
+    if (agent && (agent.name === "The Mediator" || agent.name === "The Judge")) {
+        if (selectedAgents.has(key)) return; // already selected, can't deselect
+    }
     if (selectedAgents.has(key)) {
         if (selectedAgents.size <= 1) return;
         selectedAgents.delete(key);
@@ -355,16 +360,22 @@ function populateAddSelect() {
 // ── Queue ──
 
 function buildQueueFromSelection() {
-    const keys = Array.from(selectedAgents);
-    const mediatorKey = keys.find((k) => {
-        const a = allAgents.find((x) => x.key === k);
-        return a && a.name === "The Mediator";
-    });
-    const judgeKey = keys.find((k) => {
-        const a = allAgents.find((x) => x.key === k);
-        return a && a.name === "The Judge";
-    });
-    const others = keys.filter((k) => k !== mediatorKey && k !== judgeKey);
+    // Always ensure Mediator and Judge are selected (mandatory agents)
+    const mediatorAgent = allAgents.find((a) => a.name === "The Mediator");
+    const judgeAgent = allAgents.find((a) => a.name === "The Judge");
+    if (mediatorAgent && !selectedAgents.has(mediatorAgent.key)) {
+        selectedAgents.add(mediatorAgent.key);
+        updateChip(mediatorAgent.key);
+    }
+    if (judgeAgent && !selectedAgents.has(judgeAgent.key)) {
+        selectedAgents.add(judgeAgent.key);
+        updateChip(judgeAgent.key);
+    }
+
+    const allKeys = Array.from(selectedAgents);
+    const mediatorKey = mediatorAgent ? mediatorAgent.key : null;
+    const judgeKey = judgeAgent ? judgeAgent.key : null;
+    const others = allKeys.filter((k) => k !== mediatorKey && k !== judgeKey);
 
     // Shuffle non-mediator/non-judge agents randomly
     for (let i = others.length - 1; i > 0; i--) {
