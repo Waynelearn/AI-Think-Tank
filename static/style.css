@@ -1129,7 +1129,8 @@ header h1 {
     .sentiment-row-dot { width: 8px; height: 8px; }
     .sentiment-row-value { width: 30px; font-size: 10px; }
     .sentiment-chart-title { font-size: 11px; margin-bottom: 4px; }
-    #sentiment-canvas { height: 350px; }
+    .sentiment-chart-section { overflow: auto; -webkit-overflow-scrolling: touch; max-height: 70vh; }
+    #sentiment-canvas { width: 700px; min-width: 700px; height: 600px; }
     .sentiment-legend { gap: 3px 8px; padding: 4px 0; }
     .sentiment-legend-item { font-size: 10px; gap: 2px; }
     .sentiment-legend-emoji { font-size: 12px; }
