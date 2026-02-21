@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="AI Think Tank — Multi-agent AI discussion platform. 19 AI personas debate your topics across philosophy, finance, strategy, and more.">
     <title>AI Think Tank</title>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=5">
     <noscript><style>body{background:#0f1117;color:#e0e0e0;padding:2rem;font-family:sans-serif;}</style></noscript>
 </head>
 <body>
@@ -102,6 +102,30 @@
             </div>
         </div>
 
+        <!-- Sentiment Spectrum Strip (always visible when data exists) -->
+        <div class="sentiment-strip" id="sentiment-strip" style="display:none;"
+             role="button" tabindex="0" aria-label="Sentiment spectrum — click to expand chart"
+             title="Click to expand sentiment chart">
+            <div class="sentiment-strip-labels">
+                <span class="sentiment-label-left" id="sentiment-label-left"></span>
+                <span class="sentiment-label-center">Neutral</span>
+                <span class="sentiment-label-right" id="sentiment-label-right"></span>
+            </div>
+            <div class="sentiment-strip-track" id="sentiment-strip-track"></div>
+        </div>
+
+        <!-- Expandable Sentiment Chart -->
+        <div class="sentiment-chart-container" id="sentiment-chart-container" style="display:none;"
+             role="region" aria-label="Sentiment time-series chart">
+            <div class="sentiment-chart-header">
+                <span class="sentiment-chart-title">Viewpoint Alignment Over Rounds</span>
+                <button class="sentiment-chart-close" id="sentiment-chart-close"
+                        aria-label="Collapse sentiment chart">&times;</button>
+            </div>
+            <canvas id="sentiment-canvas" width="800" height="300"></canvas>
+            <div class="sentiment-legend" id="sentiment-legend"></div>
+        </div>
+
         <!-- Error region for screen readers -->
         <div id="error-region" role="alert" aria-live="assertive" aria-atomic="true"></div>
 
@@ -129,7 +153,7 @@
         </div>
     </div>
 
-    <script src="/static/utils.js?v=4"></script>
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/utils.js?v=5"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

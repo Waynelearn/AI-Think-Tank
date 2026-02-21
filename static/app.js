@@ -22,6 +22,16 @@ const btnNewChat = document.getElementById("btn-new-chat");
 const btnHistory = document.getElementById("btn-history");
 const errorRegion = document.getElementById("error-region");
 
+// Sentiment refs
+const sentimentStrip = document.getElementById("sentiment-strip");
+const sentimentStripTrack = document.getElementById("sentiment-strip-track");
+const sentimentLabelLeft = document.getElementById("sentiment-label-left");
+const sentimentLabelRight = document.getElementById("sentiment-label-right");
+const sentimentChartContainer = document.getElementById("sentiment-chart-container");
+const sentimentCanvas = document.getElementById("sentiment-canvas");
+const sentimentLegend = document.getElementById("sentiment-legend");
+const sentimentChartClose = document.getElementById("sentiment-chart-close");
+
 // Settings refs
 const settingsToggle = document.getElementById("settings-toggle");
 const settingsBody = document.getElementById("settings-body");
@@ -102,6 +112,10 @@ let currentSpeakingAgent = null; // {key, name, avatar, color}
 // Save debounce timer
 let saveDebounceTimer = null;
 
+// Sentiment tracking
+let sentimentHistory = [];     // [{round, viewpoints, scores}, ...]
+let sentimentChartOpen = false;
+
 // Font size scale (px) — only affects chat content, not UI chrome
 const FONT_SIZES = [12, 13, 14, 15, 16, 18, 20];
 const FONT_SIZE_DEFAULT_IDX = 2; // 14px
@@ -128,6 +142,9 @@ function applyTheme(theme) {
 function toggleTheme() {
     const current = document.documentElement.getAttribute("data-theme") || "dark";
     applyTheme(current === "dark" ? "light" : "dark");
+    if (sentimentChartOpen && sentimentHistory.length > 0) {
+        renderSentimentChart();
+    }
 }
 
 function initFontSize() {
@@ -751,6 +768,8 @@ function newChat() {
     fileSessionId = "";
     totalInputTokens = 0;
     totalOutputTokens = 0;
+    sentimentHistory = [];
+    sentimentChartOpen = false;
 
     // Reset UI
     chatArea.innerHTML = `
@@ -764,6 +783,9 @@ function newChat() {
     downloadBtn.disabled = true;
     stopHeartbeat();
     releaseWakeLock();
+    sentimentStrip.style.display = "none";
+    sentimentChartContainer.style.display = "none";
+    sentimentStripTrack.innerHTML = "";
 
     // Remove history/resume panels
     const panel = document.getElementById("history-panel");
@@ -1055,6 +1077,14 @@ function handleMessage(data) {
             }
             break;
 
+        case "sentiment_update":
+            handleSentimentUpdate(data);
+            break;
+
+        case "curator_requeue":
+            handleCuratorRequeue(data);
+            break;
+
         case "error":
             handleIncompleteResponse();
             showError(data.message);
@@ -1070,7 +1100,7 @@ function updateControls() {
     btnNext.disabled = !canAct || queue.length === 0;
     btnNewRound.disabled = !canAct;
     btnEnd.disabled = !sessionActive;
-    btnAddAgent.disabled = !sessionActive;
+    btnAddAgent.disabled = false; // always enabled — users can queue prompts anytime
 
     if (autoRunning) {
         btnPlay.textContent = "\u23F8 Pause";
@@ -1157,7 +1187,7 @@ btnShuffle.addEventListener("click", () => {
     setTimeout(() => { btnShuffle.style.background = ""; btnShuffle.style.color = ""; }, 200);
 });
 
-btnAddAgent.addEventListener("click", () => {
+function addSelectedToQueue() {
     const key = addAgentSelect.value;
     if (!key) return;
 
@@ -1183,6 +1213,15 @@ btnAddAgent.addEventListener("click", () => {
     renderQueue();
     addAgentSelect.value = "";
     updateControls();
+}
+
+btnAddAgent.addEventListener("click", addSelectedToQueue);
+
+// Auto-trigger when "Your Prompt" is selected in the dropdown
+addAgentSelect.addEventListener("change", () => {
+    if (addAgentSelect.value === "__user_prompt__") {
+        addSelectedToQueue();
+    }
 });
 
 // ── New Chat ──
@@ -1726,6 +1765,255 @@ document.addEventListener("keydown", (e) => {
         }
     }
 });
+
+// ── Sentiment Analyst ──
+
+function handleSentimentUpdate(data) {
+    const entry = {
+        round: data.round,
+        viewpoints: data.data.viewpoints || [],
+        scores: data.data.scores || {},
+    };
+    sentimentHistory.push(entry);
+    renderSentimentStrip(entry);
+    if (sentimentChartOpen) {
+        renderSentimentChart();
+    }
+}
+
+function renderSentimentStrip(latestEntry) {
+    if (!latestEntry || !latestEntry.viewpoints.length) return;
+
+    sentimentStrip.style.display = "block";
+
+    const vps = latestEntry.viewpoints;
+    sentimentLabelRight.textContent = vps[0]?.label || "Viewpoint A";
+    sentimentLabelLeft.textContent = vps.length > 1 ? vps[1].label : "";
+
+    sentimentStripTrack.innerHTML = "";
+
+    const scores = latestEntry.scores;
+    for (const [agentName, score] of Object.entries(scores)) {
+        if (typeof score !== "number") continue;
+        const agent = allAgents.find(a => a.name === agentName);
+
+        const dot = document.createElement("div");
+        dot.className = "sentiment-dot";
+        dot.style.backgroundColor = agent ? agent.color : "#888";
+
+        // Map score (-1 to +1) to percentage (0% to 100%)
+        const pct = ((score + 1) / 2) * 100;
+        dot.style.left = `${Math.max(2, Math.min(98, pct))}%`;
+
+        const tooltip = document.createElement("span");
+        tooltip.className = "sentiment-dot-tooltip";
+        const avatar = agent ? agent.avatar : "?";
+        tooltip.textContent = `${avatar} ${agentName}: ${score > 0 ? "+" : ""}${score.toFixed(1)}`;
+        dot.appendChild(tooltip);
+
+        sentimentStripTrack.appendChild(dot);
+    }
+}
+
+function renderSentimentChart() {
+    if (sentimentHistory.length === 0) return;
+
+    const canvas = sentimentCanvas;
+    const ctx = canvas.getContext("2d");
+
+    // Handle HiDPI
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const W = rect.width;
+    const H = rect.height;
+    const PAD_LEFT = 50;
+    const PAD_RIGHT = 20;
+    const PAD_TOP = 25;
+    const PAD_BOTTOM = 30;
+    const plotW = W - PAD_LEFT - PAD_RIGHT;
+    const plotH = H - PAD_TOP - PAD_BOTTOM;
+
+    // Clear
+    const isDark = document.documentElement.getAttribute("data-theme") !== "light";
+    ctx.fillStyle = isDark ? "#151821" : "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+
+    // Collect all agent names across all rounds
+    const allAgentNames = new Set();
+    sentimentHistory.forEach(entry => {
+        Object.keys(entry.scores).forEach(name => {
+            if (typeof entry.scores[name] === "number") allAgentNames.add(name);
+        });
+    });
+
+    const rounds = sentimentHistory.map(e => e.round);
+    const minRound = Math.min(...rounds);
+    const maxRound = Math.max(...rounds);
+    const roundRange = maxRound - minRound || 1;
+
+    const xPos = (round) => PAD_LEFT + ((round - minRound) / roundRange) * plotW;
+    const yPos = (score) => PAD_TOP + ((1 - score) / 2) * plotH;
+
+    // Horizontal gridlines at -1, -0.5, 0, 0.5, 1
+    [-1, -0.5, 0, 0.5, 1].forEach(val => {
+        const y = yPos(val);
+        ctx.beginPath();
+        ctx.moveTo(PAD_LEFT, y);
+        ctx.lineTo(W - PAD_RIGHT, y);
+        if (val === 0) {
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = isDark ? "#555" : "#aaa";
+            ctx.lineWidth = 1;
+        } else {
+            ctx.setLineDash([]);
+            ctx.strokeStyle = isDark ? "#333" : "#ddd";
+            ctx.lineWidth = 0.5;
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    });
+
+    // Y-axis labels
+    ctx.fillStyle = isDark ? "#888" : "#666";
+    ctx.font = "11px -apple-system, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    [-1, -0.5, 0, 0.5, 1].forEach(val => {
+        ctx.fillText(val.toFixed(1), PAD_LEFT - 6, yPos(val));
+    });
+
+    // X-axis labels (round numbers)
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    rounds.forEach(r => {
+        ctx.fillText(`R${r}`, xPos(r), H - PAD_BOTTOM + 6);
+    });
+
+    // Viewpoint labels at top
+    const latestEntry = sentimentHistory[sentimentHistory.length - 1];
+    if (latestEntry.viewpoints.length >= 1) {
+        ctx.fillStyle = isDark ? "#27AE60" : "#1a8a45";
+        ctx.textAlign = "right";
+        ctx.font = "10px -apple-system, sans-serif";
+        ctx.fillText(latestEntry.viewpoints[0].label + " (+1)", W - PAD_RIGHT, 4);
+    }
+    if (latestEntry.viewpoints.length >= 2) {
+        ctx.fillStyle = isDark ? "#E74C3C" : "#c0392b";
+        ctx.textAlign = "left";
+        ctx.fillText(latestEntry.viewpoints[1].label + " (-1)", PAD_LEFT, 4);
+    }
+
+    // Draw lines per agent
+    allAgentNames.forEach(agentName => {
+        const agent = allAgents.find(a => a.name === agentName);
+        const color = agent ? agent.color : "#888";
+
+        const points = [];
+        sentimentHistory.forEach(entry => {
+            if (typeof entry.scores[agentName] === "number") {
+                points.push({ round: entry.round, score: entry.scores[agentName] });
+            }
+        });
+
+        if (points.length === 0) return;
+
+        // Draw line
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            const x = xPos(p.round);
+            const y = yPos(p.score);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw dots
+        points.forEach(p => {
+            const x = xPos(p.round);
+            const y = yPos(p.score);
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = isDark ? "#0f1117" : "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+    });
+
+    // Update legend
+    sentimentLegend.innerHTML = "";
+    allAgentNames.forEach(agentName => {
+        const agent = allAgents.find(a => a.name === agentName);
+        const color = agent ? agent.color : "#888";
+        const item = document.createElement("span");
+        item.className = "sentiment-legend-item";
+        item.innerHTML = `<span class="sentiment-legend-swatch" style="background:${color}"></span>${escapeHtml(agentName)}`;
+        sentimentLegend.appendChild(item);
+    });
+}
+
+// Strip click toggles chart
+sentimentStrip.addEventListener("click", () => {
+    sentimentChartOpen = !sentimentChartOpen;
+    if (sentimentChartOpen) {
+        sentimentChartContainer.style.display = "block";
+        renderSentimentChart();
+    } else {
+        sentimentChartContainer.style.display = "none";
+    }
+});
+
+sentimentStrip.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        sentimentStrip.click();
+    }
+});
+
+sentimentChartClose.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sentimentChartOpen = false;
+    sentimentChartContainer.style.display = "none";
+});
+
+window.addEventListener("resize", () => {
+    if (sentimentChartOpen && sentimentHistory.length > 0) {
+        renderSentimentChart();
+    }
+});
+
+// ── Curator: incomplete response re-queuing ──
+
+function handleCuratorRequeue(data) {
+    const agentKey = data.agent_key;
+    const agentName = data.agent_name;
+    const lastTopic = data.last_topic || "their previous point";
+
+    // Add a notice in chat
+    const notice = document.createElement("div");
+    notice.className = "curator-notice";
+    notice.textContent = `\u{1F50D} Curator detected incomplete response from ${agentName} — re-queuing to continue from: "${lastTopic}"`;
+    chatArea.appendChild(notice);
+    scrollToBottom();
+
+    // Add to front of queue (dedupe first)
+    queue = queue.filter(q => q.key !== agentKey);
+    queue.unshift({
+        key: agentKey,
+        name: agentName,
+        avatar: data.avatar || "?",
+        color: data.color || "#888",
+    });
+    renderQueue();
+    updateControls();
+}
 
 // ── Init ──
 loadProviders();

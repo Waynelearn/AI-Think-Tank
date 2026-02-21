@@ -1,10 +1,13 @@
 import json
 import asyncio
+import logging
 from fastapi import WebSocket
 from agents.registry import AgentRegistry
 from agents.providers import Usage
 from .models import Discussion, Message
 from database import log_receipt, update_session_state, end_session, estimate_cost
+
+logger = logging.getLogger(__name__)
 
 
 class DiscussionEngine:
@@ -60,6 +63,13 @@ class DiscussionEngine:
 
                 await self._run_single_agent(websocket, agent, discussion, topic,
                                              round_num, file_context, api_keys, session_id)
+
+                # Run curator check on the agent's response
+                await self._run_curator_check(
+                    websocket, agent, discussion, topic,
+                    round_num, file_context, api_keys, session_id
+                )
+
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "run_batch":
@@ -89,6 +99,11 @@ class DiscussionEngine:
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "new_round":
+                # Run sentiment analysis on the just-completed round
+                await self._run_sentiment_analysis(
+                    websocket, discussion, topic, round_num,
+                    file_context, api_keys, session_id
+                )
                 round_num += 1
                 await self._send(websocket, {
                     "type": "round_start",
@@ -99,6 +114,11 @@ class DiscussionEngine:
                 await self._send(websocket, {"type": "ready", "round": round_num})
 
             elif action == "end":
+                # Run final sentiment analysis
+                await self._run_sentiment_analysis(
+                    websocket, discussion, topic, round_num,
+                    file_context, api_keys, session_id
+                )
                 if session_id:
                     end_session(session_id)
                 await self._send(websocket, {
@@ -130,6 +150,7 @@ class DiscussionEngine:
             "color": agent.color,
             "avatar": agent.avatar,
             "round": round_num,
+            "agent_key": next((k for k, a in self.registry.agents.items() if a is agent), ""),
         })
 
         full_response = ""
@@ -173,6 +194,149 @@ class DiscussionEngine:
                 model=model,
             )
             update_session_state(session_id, discussion.export(), round_num)
+
+    # ── Curator: completeness check ──
+
+    async def _run_curator_check(self, websocket: WebSocket, agent, discussion: Discussion,
+                                  topic: str, round_num: int, file_context: str,
+                                  api_keys: dict | None = None, session_id: str = ""):
+        """Run The Curator silently to check if the last agent response was complete."""
+        curator = self.registry.get_observer("the_curator")
+        if not curator:
+            return
+
+        # Get the last message (should be the agent's response we just finished)
+        if not discussion.messages:
+            return
+        last_msg = discussion.messages[-1]
+        if last_msg.agent_name == "user":
+            return
+
+        messages = [{
+            "role": "user",
+            "content": (
+                f"The following is {last_msg.agent_name}'s response in a discussion about: {topic}\n\n"
+                f"---\n{last_msg.content}\n---\n\n"
+                "Determine if this response is complete or was cut off. Output ONLY JSON."
+            ),
+        }]
+
+        try:
+            full_response = ""
+            async for item in curator.stream_response(messages, api_keys=api_keys):
+                if isinstance(item, Usage):
+                    pass
+                else:
+                    full_response += item
+
+            cleaned = self._clean_json_response(full_response)
+            result = json.loads(cleaned)
+
+            if not result.get("complete", True):
+                last_topic = result.get("last_topic", "their previous point")
+                agent_key = next((k for k, a in self.registry.agents.items() if a is agent), "")
+                await self._send(websocket, {
+                    "type": "curator_requeue",
+                    "agent_key": agent_key,
+                    "agent_name": agent.name,
+                    "avatar": agent.avatar,
+                    "color": agent.color,
+                    "last_topic": last_topic,
+                })
+                logger.info(f"Curator flagged {agent.name} as incomplete: {last_topic}")
+
+        except json.JSONDecodeError:
+            logger.warning(f"Curator returned invalid JSON: {full_response[:200]}")
+        except Exception as e:
+            logger.warning(f"Curator check failed: {e}")
+
+    # ── Sentiment Analysis ──
+
+    async def _run_sentiment_analysis(self, websocket: WebSocket, discussion: Discussion,
+                                       topic: str, round_num: int, file_context: str,
+                                       api_keys: dict | None = None, session_id: str = ""):
+        """Run the Sentiment Analyst silently and send sentiment_update event."""
+        observer = self.registry.get_observer("sentiment_analyst")
+        if not observer:
+            return
+
+        messages = self._build_sentiment_messages(discussion, topic, round_num)
+        if not messages:
+            return
+
+        try:
+            full_response = ""
+            usage = Usage()
+            async for item in observer.stream_response(messages, api_keys=api_keys):
+                if isinstance(item, Usage):
+                    usage = item
+                else:
+                    full_response += item
+
+            cleaned = self._clean_json_response(full_response)
+            sentiment_data = json.loads(cleaned)
+
+            if "viewpoints" not in sentiment_data or "scores" not in sentiment_data:
+                logger.warning("Sentiment analysis missing required fields")
+                return
+
+            await self._send(websocket, {
+                "type": "sentiment_update",
+                "round": round_num,
+                "data": sentiment_data,
+            })
+
+            if session_id:
+                model = (api_keys or {}).get("model", "")
+                cost = estimate_cost(model, usage.input_tokens, usage.output_tokens)
+                log_receipt(
+                    session_id=session_id,
+                    agent_name="[Sentiment Analyst]",
+                    round_num=round_num,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    estimated_cost=cost,
+                    provider=(api_keys or {}).get("provider", ""),
+                    model=model,
+                )
+
+        except json.JSONDecodeError:
+            logger.warning(f"Sentiment analysis returned invalid JSON: {full_response[:200]}")
+        except Exception as e:
+            logger.warning(f"Sentiment analysis failed: {e}")
+
+    def _build_sentiment_messages(self, discussion: Discussion, topic: str,
+                                   target_round: int) -> list[dict]:
+        """Build message for the Sentiment Analyst to analyze a specific round."""
+        round_messages = [
+            m for m in discussion.messages
+            if m.round_num == target_round and m.agent_name != "user"
+        ]
+        if not round_messages:
+            return []
+
+        transcript_lines = [f"Topic: {topic}\n", f"--- Round {target_round} ---\n"]
+        for msg in round_messages:
+            transcript_lines.append(f"{msg.agent_name}: {msg.content}\n")
+
+        return [{
+            "role": "user",
+            "content": (
+                "Analyze the following round of discussion and produce your JSON output.\n\n"
+                + "\n".join(transcript_lines)
+            ),
+        }]
+
+    # ── Helpers ──
+
+    def _clean_json_response(self, raw: str) -> str:
+        """Strip markdown code fences and whitespace from an LLM JSON response."""
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[-1] if "\n" in cleaned else cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned.rsplit("```", 1)[0]
+        return cleaned.strip()
 
     async def _drain_user_messages(self, websocket: WebSocket, discussion: Discussion, round_num: int):
         """Non-blocking check for user messages while an agent is streaming."""

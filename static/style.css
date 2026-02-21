@@ -1067,4 +1067,162 @@ header h1 {
         padding: 8px 10px;
         font-size: 14px;
     }
+
+    .sentiment-strip { padding: 4px 8px; }
+    #sentiment-canvas { height: 160px; }
+    .sentiment-legend { gap: 6px; }
+}
+
+/* ── Sentiment Spectrum Strip ── */
+.sentiment-strip {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    margin-top: 4px;
+}
+
+.sentiment-strip:hover {
+    border-color: var(--accent-blue);
+}
+
+.sentiment-strip-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-bottom: 3px;
+}
+
+.sentiment-label-left { color: var(--accent-red); }
+.sentiment-label-center { color: var(--text-very-faint); }
+.sentiment-label-right { color: var(--accent-green); }
+
+.sentiment-strip-track {
+    position: relative;
+    height: 20px;
+    background: linear-gradient(90deg,
+        rgba(231, 76, 60, 0.15),
+        rgba(128, 128, 128, 0.08) 50%,
+        rgba(39, 174, 96, 0.15)
+    );
+    border-radius: 10px;
+    border: 1px solid var(--border-muted);
+}
+
+.sentiment-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border: 2px solid var(--bg-page);
+    transition: left 0.5s ease;
+    cursor: default;
+    z-index: 1;
+}
+
+.sentiment-dot:hover {
+    transform: translate(-50%, -50%) scale(1.3);
+    z-index: 2;
+}
+
+.sentiment-dot-tooltip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.sentiment-dot:hover .sentiment-dot-tooltip {
+    opacity: 1;
+}
+
+/* ── Sentiment Chart Container ── */
+.sentiment-chart-container {
+    flex-shrink: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 4px;
+}
+
+.sentiment-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.sentiment-chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.sentiment-chart-close {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+.sentiment-chart-close:hover {
+    color: var(--accent-red);
+}
+
+#sentiment-canvas {
+    width: 100%;
+    height: 200px;
+    display: block;
+}
+
+.sentiment-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 6px;
+    justify-content: center;
+}
+
+.sentiment-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.sentiment-legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ── Curator requeue notice ── */
+.curator-notice {
+    text-align: center;
+    font-size: 11px;
+    color: var(--accent-sky);
+    font-style: italic;
+    padding: 4px 0;
+    opacity: 0.85;
 }
