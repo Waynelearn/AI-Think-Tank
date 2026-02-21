@@ -1110,17 +1110,17 @@ header h1 {
     .viewpoint-inputs input { font-size: 14px; padding: 5px 8px; }
     .viewpoint-vs { display: none; }
     .viewpoint-hint { font-size: 9px; }
-    .sentiment-metrics { gap: 12px; padding: 6px 8px; margin-bottom: 8px; flex-wrap: wrap; }
-    .sentiment-metric { gap: 4px; }
-    .sentiment-metric-label { font-size: 10px; }
-    .sentiment-metric-value { font-size: 11px; min-width: 32px; }
-    .sentiment-metric-bar-wrap { min-width: 40px; }
-    .sentiment-metric-arrow { font-size: 14px; }
-    .sentiment-strip-header { gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
-    .sentiment-strip-header .sentiment-round-select { font-size: 11px; padding: 2px 4px; }
-    .sentiment-viewpoint-labels { font-size: 10px; padding: 0 2px; margin-bottom: 4px; }
+    .sentiment-metrics { flex-direction: column; gap: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .sentiment-metric { gap: 6px; flex: none; width: 100%; }
+    .sentiment-metric-label { font-size: 11px; min-width: 80px; }
+    .sentiment-metric-value { font-size: 12px; min-width: 44px; }
+    .sentiment-metric-bar-wrap { min-width: 60px; }
+    .sentiment-metric-arrow { font-size: 16px; }
+    .sentiment-strip-header { gap: 4px; flex-direction: column; align-items: stretch; margin-bottom: 6px; }
+    .sentiment-strip-header .sentiment-round-select { font-size: 11px; padding: 3px 6px; align-self: flex-start; }
+    .sentiment-viewpoint-labels { font-size: 11px; padding: 0 2px; margin-bottom: 4px; }
     .sentiment-vp-left,
-    .sentiment-vp-right { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sentiment-vp-right { max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sentiment-vp-center { font-size: 9px; }
     .sentiment-strip-inline { gap: 3px; margin-bottom: 8px; padding: 4px 0; }
     .sentiment-row { gap: 4px; height: 20px; }

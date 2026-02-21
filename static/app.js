@@ -2047,7 +2047,13 @@ function handleSentimentUpdate(data) {
         consensus: typeof data.data.consensus === "number" ? data.data.consensus : null,
         momentum: typeof data.data.momentum === "number" ? data.data.momentum : null,
     };
-    sentimentHistory.push(entry);
+    // Replace existing entry for the same round (prevents duplicates on reconnect)
+    const existingIdx = sentimentHistory.findIndex(e => e.round === entry.round);
+    if (existingIdx >= 0) {
+        sentimentHistory[existingIdx] = entry;
+    } else {
+        sentimentHistory.push(entry);
+    }
 
     // Auto-fill viewpoint inputs if blank (round 1 auto-generation)
     if (entry.viewpoints.length >= 2 && !viewpointAInput.value.trim() && !viewpointBInput.value.trim()) {
