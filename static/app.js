@@ -136,6 +136,7 @@ let saveDebounceTimer = null;
 let sentimentHistory = [];     // [{round, viewpoints, scores, commentary}, ...]
 let sentimentChartOpen = false;
 let sentimentViewSessionId = ""; // which session is being viewed in the sentiment panel
+let chartFilteredAgents = new Set(); // empty = show all, otherwise only these agents highlighted
 
 // Font size scale (px) — only affects chat content, not UI chrome
 const FONT_SIZES = [12, 13, 14, 15, 16, 18, 20];
@@ -2425,10 +2426,20 @@ function renderSentimentChart(history) {
     });
 
     // Draw lines and emoji markers per agent
-    allAgentNames.forEach(agentName => {
+    const hasFilter = chartFilteredAgents.size > 0;
+
+    // Draw dimmed agents first (background), then highlighted agents on top
+    const sortedAgents = [...allAgentNames].sort((a, b) => {
+        const aActive = !hasFilter || chartFilteredAgents.has(a);
+        const bActive = !hasFilter || chartFilteredAgents.has(b);
+        return aActive - bActive; // dimmed first, active on top
+    });
+
+    sortedAgents.forEach(agentName => {
         const agent = allAgents.find(a => a.name === agentName);
         const color = agent ? agent.color : "#888";
         const emoji = agent ? agent.avatar : "?";
+        const isActive = !hasFilter || chartFilteredAgents.has(agentName);
 
         const points = [];
         history.forEach(entry => {
@@ -2440,8 +2451,9 @@ function renderSentimentChart(history) {
         if (points.length === 0) return;
 
         // Draw line
+        ctx.globalAlpha = isActive ? 1.0 : 0.1;
         ctx.strokeStyle = color;
-        ctx.lineWidth = isMobile ? 1.5 : 2.5;
+        ctx.lineWidth = isActive ? (isMobile ? 2 : 3) : (isMobile ? 1 : 1.5);
         ctx.beginPath();
         points.forEach((p, i) => {
             const x = xPos(p.round);
@@ -2458,9 +2470,9 @@ function renderSentimentChart(history) {
             const mean = roundMeans[p.round] || 0;
             const isOutlier = Math.abs(p.score - mean) > 0.7 || Math.abs(p.score) >= 1.0;
 
-            // Outlier glow
-            const glowR = isMobile ? 11 : 16;
-            if (isOutlier) {
+            // Outlier glow (only for active agents)
+            if (isActive && isOutlier) {
+                const glowR = isMobile ? 11 : 16;
                 ctx.beginPath();
                 ctx.arc(x, y, glowR, 0, Math.PI * 2);
                 ctx.fillStyle = color + "30";
@@ -2471,6 +2483,7 @@ function renderSentimentChart(history) {
             }
 
             // Emoji marker
+            ctx.globalAlpha = isActive ? 1.0 : 0.08;
             const emojiFontSize = isMobile ? 13 : 18;
             ctx.font = `${emojiFontSize}px -apple-system, 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif`;
             ctx.textAlign = "center";
@@ -2478,17 +2491,40 @@ function renderSentimentChart(history) {
             ctx.fillStyle = isDark ? "#e0e0e0" : "#1a1a2e";
             ctx.fillText(emoji, x, y);
         });
+
+        ctx.globalAlpha = 1.0;
     });
 
-    // Update legend with emoji + colored line
+    // Update legend with clickable emoji + colored line
     sentimentLegend.innerHTML = "";
+    // Show All button (only when filter is active)
+    if (hasFilter) {
+        const resetBtn = document.createElement("span");
+        resetBtn.className = "sentiment-legend-item sentiment-legend-reset";
+        resetBtn.textContent = "Show All";
+        resetBtn.addEventListener("click", () => {
+            chartFilteredAgents.clear();
+            renderSentimentChart(history);
+        });
+        sentimentLegend.appendChild(resetBtn);
+    }
     allAgentNames.forEach(agentName => {
         const agent = allAgents.find(a => a.name === agentName);
         const color = agent ? agent.color : "#888";
         const avatar = agent ? agent.avatar : "?";
+        const isActive = !hasFilter || chartFilteredAgents.has(agentName);
         const item = document.createElement("span");
-        item.className = "sentiment-legend-item";
+        item.className = `sentiment-legend-item${isActive ? " sentiment-legend-active" : " sentiment-legend-dimmed"}`;
         item.innerHTML = `<span class="sentiment-legend-emoji">${avatar}</span><span class="sentiment-legend-line" style="background:${color}"></span>${escapeHtml(agentName)}`;
+        item.style.cursor = "pointer";
+        item.addEventListener("click", () => {
+            if (chartFilteredAgents.has(agentName)) {
+                chartFilteredAgents.delete(agentName);
+            } else {
+                chartFilteredAgents.add(agentName);
+            }
+            renderSentimentChart(history);
+        });
         sentimentLegend.appendChild(item);
     });
 }

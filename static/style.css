@@ -1515,6 +1515,38 @@ header h1 {
     gap: 4px;
     font-size: 12px;
     color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: opacity 0.2s, background 0.2s;
+    user-select: none;
+}
+
+.sentiment-legend-item:hover {
+    background: var(--bg-raised);
+}
+
+.sentiment-legend-dimmed {
+    opacity: 0.3;
+}
+
+.sentiment-legend-active {
+    opacity: 1;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-muted);
+}
+
+.sentiment-legend-reset {
+    font-weight: 600;
+    color: var(--accent-blue);
+    border: 1px solid var(--accent-blue);
+    padding: 2px 10px;
+    font-size: 11px;
+}
+
+.sentiment-legend-reset:hover {
+    background: var(--accent-blue);
+    color: #fff;
 }
 
 .sentiment-legend-emoji {
