@@ -639,8 +639,12 @@ function loadSentimentData(sid) {
         const raw = localStorage.getItem(`thinktank_sentiment_${sid}`);
         if (!raw) return { sentimentHistory: [], sentimentCommentaryMap: {} };
         const data = JSON.parse(raw);
+        // Deduplicate by round (keep latest entry per round)
+        const hist = data.sentimentHistory || [];
+        const byRound = new Map();
+        for (const entry of hist) byRound.set(entry.round, entry);
         return {
-            sentimentHistory: data.sentimentHistory || [],
+            sentimentHistory: Array.from(byRound.values()),
             sentimentCommentaryMap: data.sentimentCommentaryMap || {},
         };
     } catch (e) {
